@@ -7,3 +7,4 @@ license.workspace = true
 
 [dependencies]
 audiacore-errors = { path = "../audiacore-errors" }
+audiacore-sensitive = { path = "../audiacore-sensitive" }
