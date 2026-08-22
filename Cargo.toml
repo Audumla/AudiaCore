@@ -2,6 +2,9 @@
 members = [
     "crates/audiacore-core",
     "crates/audiacore-errors",
+    "crates/audiacore-sensitive",
+    "crates/audiacore-template",
+    "crates/audiacore-reconcile",
 ]
 resolver = "3"
 
