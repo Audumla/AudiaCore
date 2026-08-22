@@ -442,7 +442,10 @@ mod tests {
         assert_eq!(events.policy(), policy);
         assert_eq!(events.len(), 2);
         assert_eq!(events.last_sequence(), Some(EventSequence::new(2)));
-        assert_eq!(events.iter().nth(1).unwrap().payload(), &JobEvent::Completed);
+        assert_eq!(
+            events.iter().nth(1).unwrap().payload(),
+            &JobEvent::Completed
+        );
     }
 
     #[test]
@@ -471,7 +474,13 @@ mod tests {
     #[test]
     fn ahead_empty_and_zero_limit_have_distinct_semantics() {
         let events = stream(EventPolicy::unbounded());
-        assert!(events.page_after(EventCursor::start(), 1).unwrap().events().is_empty());
+        assert!(
+            events
+                .page_after(EventCursor::start(), 1)
+                .unwrap()
+                .events()
+                .is_empty()
+        );
 
         let ahead = events.page_after(EventCursor::new(1), 1).unwrap_err();
         assert_eq!(ahead.code().as_str(), "CON-EVENT-002");
@@ -486,7 +495,10 @@ mod tests {
             EventPolicy::bounded(0).unwrap_err().code().as_str(),
             "VAL-EVENT-002"
         );
-        assert_eq!(EventId::new(" ").unwrap_err().code().as_str(), "VAL-EVENT-001");
+        assert_eq!(
+            EventId::new(" ").unwrap_err().code().as_str(),
+            "VAL-EVENT-001"
+        );
     }
 
     #[test]
