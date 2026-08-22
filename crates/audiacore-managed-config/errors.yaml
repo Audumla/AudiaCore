@@ -2,7 +2,3 @@ IO-MCONFIG-001:
   kind: io
   message: "Managed configuration host operation failed."
   resolution: "Inspect the underlying host error and verify the target authority and storage state."
-CON-MCONFIG-001:
-  kind: constraint
-  message: "Managed configuration ownership does not match the target."
-  resolution: "Re-plan the change for the target's current ownership identity before applying it."

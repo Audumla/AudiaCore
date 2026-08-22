@@ -241,7 +241,6 @@ pub fn execute_managed_config<H: FileHost>(
     match apply(
         composition.host(),
         composition.write_authority(),
-        request.target(),
         &planned,
     ) {
         Ok(result) => {
@@ -284,7 +283,7 @@ mod tests {
             .register_yaml(
                 "test/errors.yaml",
                 r#"
-CON-MCONFIG-001:
+CON-PRESENT-001:
   kind: constraint
   message: "Target {target} used token {token}."
   resolution: "Correct the target."
@@ -299,7 +298,7 @@ CON-MCONFIG-001:
 
         let presented = present_error(
             &catalogue,
-            &ExampleError(ErrorCode::new("CON-MCONFIG-001")),
+            &ExampleError(ErrorCode::new("CON-PRESENT-001")),
             &context,
         );
 
@@ -331,19 +330,19 @@ CON-MCONFIG-001:
             .register_yaml(
                 "test/errors.yaml",
                 r#"
-CON-MCONFIG-001:
+CON-PRESENT-001:
   kind: constraint
   message: "Target {target} is invalid."
   resolution: "Correct the target."
 "#,
             )
             .unwrap();
-        let error = ExampleError(ErrorCode::new("CON-MCONFIG-001"));
+        let error = ExampleError(ErrorCode::new("CON-PRESENT-001"));
 
         let presented = present_error(&catalogue, &error, &MessageContext::new());
 
         assert!(!presented.configured());
         assert_eq!(presented.code(), error.code());
-        assert_eq!(presented.message(), "Error CON-MCONFIG-001.");
+        assert_eq!(presented.message(), "Error CON-PRESENT-001.");
     }
 }

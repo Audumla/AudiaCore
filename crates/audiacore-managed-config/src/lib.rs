@@ -1,9 +1,15 @@
-//! Managed configuration reconciliation over narrow file-host authority.
+//! Whole-file desired-state reconciliation over narrow file-host authority.
 //!
 //! This capability observes optional bytes, plans desired presence through the
-//! pure reconciliation layer, and applies one resulting file effect. It does
-//! not parse configuration, watch files, retry operations, schedule work, or
-//! provide multi-writer/CAS guarantees.
+//! pure reconciliation layer, and applies one resulting whole-file effect. It
+//! does not parse configuration, manage partial content, prove ownership of
+//! pre-existing files, watch files, retry operations, schedule work, or provide
+//! multi-writer/CAS guarantees.
+//!
+//! `desired = None` means deletion of the entire target file. Callers must only
+//! use this capability where whole-file lifecycle responsibility has already
+//! been explicitly delegated. File authority permits an effect; it is not
+//! semantic ownership evidence.
 
 use std::{
     error::Error,
@@ -13,43 +19,34 @@ use std::{
 
 use audiacore_errors::{CodedError, ErrorCode};
 use audiacore_host::{FileHost, FileReadAuthority, FileWriteAuthority};
-use audiacore_reconcile::{OwnerId, ReconcileAction, plan as reconcile_presence};
+use audiacore_reconcile::{ReconcileAction, plan as reconcile_presence};
 
 const HOST_OPERATION_FAILED: ErrorCode = ErrorCode::new("IO-MCONFIG-001");
-const OWNERSHIP_MISMATCH: ErrorCode = ErrorCode::new("CON-MCONFIG-001");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedConfigTarget {
     path: PathBuf,
-    owner: OwnerId,
 }
 
 impl ManagedConfigTarget {
-    pub fn new(path: impl Into<PathBuf>, owner: OwnerId) -> Self {
-        Self {
-            path: path.into(),
-            owner,
-        }
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
     }
 
     pub fn path(&self) -> &Path {
         &self.path
     }
-
-    pub fn owner(&self) -> &OwnerId {
-        &self.owner
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedConfigPlan {
-    owner: OwnerId,
+    target: ManagedConfigTarget,
     action: ReconcileAction<Vec<u8>>,
 }
 
 impl ManagedConfigPlan {
-    pub fn owner(&self) -> &OwnerId {
-        &self.owner
+    pub fn target(&self) -> &ManagedConfigTarget {
+        &self.target
     }
 
     pub fn action(&self) -> &ReconcileAction<Vec<u8>> {
@@ -68,14 +65,12 @@ pub enum ManagedConfigApplyResult {
 #[derive(Debug)]
 pub enum ManagedConfigError<E> {
     Host(E),
-    OwnershipMismatch { expected: OwnerId, actual: OwnerId },
 }
 
 impl<E> CodedError for ManagedConfigError<E> {
     fn code(&self) -> ErrorCode {
         match self {
             Self::Host(_) => HOST_OPERATION_FAILED,
-            Self::OwnershipMismatch { .. } => OWNERSHIP_MISMATCH,
         }
     }
 }
@@ -83,13 +78,7 @@ impl<E> CodedError for ManagedConfigError<E> {
 impl<E: fmt::Display> fmt::Display for ManagedConfigError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Host(error) => write!(f, "managed configuration host error: {error}"),
-            Self::OwnershipMismatch { expected, actual } => write!(
-                f,
-                "managed configuration ownership mismatch: expected {}, actual {}",
-                expected.as_str(),
-                actual.as_str()
-            ),
+            Self::Host(error) => write!(f, "managed whole-file host error: {error}"),
         }
     }
 }
@@ -98,7 +87,6 @@ impl<E: Error + 'static> Error for ManagedConfigError<E> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Host(error) => Some(error),
-            Self::OwnershipMismatch { .. } => None,
         }
     }
 }
@@ -118,7 +106,7 @@ pub fn plan(
     desired: &Option<Vec<u8>>,
 ) -> ManagedConfigPlan {
     ManagedConfigPlan {
-        owner: target.owner().clone(),
+        target: target.clone(),
         action: reconcile_presence(desired.as_ref(), observed.as_ref()),
     }
 }
@@ -126,30 +114,22 @@ pub fn plan(
 pub fn apply<H: FileHost>(
     host: &H,
     authority: &FileWriteAuthority,
-    target: &ManagedConfigTarget,
     plan: &ManagedConfigPlan,
 ) -> Result<ManagedConfigApplyResult, ManagedConfigError<H::Error>> {
-    if plan.owner() != target.owner() {
-        return Err(ManagedConfigError::OwnershipMismatch {
-            expected: target.owner().clone(),
-            actual: plan.owner().clone(),
-        });
-    }
-
     match plan.action() {
         ReconcileAction::Noop => Ok(ManagedConfigApplyResult::Noop),
         ReconcileAction::Create(bytes) => {
-            host.write(authority, target.path(), bytes)
+            host.write(authority, plan.target().path(), bytes)
                 .map_err(ManagedConfigError::Host)?;
             Ok(ManagedConfigApplyResult::Created)
         }
         ReconcileAction::Replace(bytes) => {
-            host.write(authority, target.path(), bytes)
+            host.write(authority, plan.target().path(), bytes)
                 .map_err(ManagedConfigError::Host)?;
             Ok(ManagedConfigApplyResult::Replaced)
         }
         ReconcileAction::Delete => {
-            host.remove(authority, target.path())
+            host.remove(authority, plan.target().path())
                 .map_err(ManagedConfigError::Host)?;
             Ok(ManagedConfigApplyResult::Deleted)
         }
@@ -241,33 +221,34 @@ mod tests {
         FileWriteAuthority::new(authority_root()).unwrap()
     }
 
-    fn target(owner: &str) -> ManagedConfigTarget {
-        ManagedConfigTarget::new("app.conf", OwnerId::new(owner).unwrap())
+    fn target() -> ManagedConfigTarget {
+        ManagedConfigTarget::new("app.conf")
     }
 
     #[test]
     fn create_replace_delete_flow_is_explicit() {
         let host = MemoryFileHost::default();
-        let target = target("application-config");
+        let target = target();
 
         let observed = observe(&host, &read_authority(), &target).unwrap();
         let create = plan(&target, &observed, &Some(b"one".to_vec()));
+        assert_eq!(create.target(), &target);
         assert_eq!(
-            apply(&host, &write_authority(), &target, &create).unwrap(),
+            apply(&host, &write_authority(), &create).unwrap(),
             ManagedConfigApplyResult::Created
         );
 
         let observed = observe(&host, &read_authority(), &target).unwrap();
         let replace = plan(&target, &observed, &Some(b"two".to_vec()));
         assert_eq!(
-            apply(&host, &write_authority(), &target, &replace).unwrap(),
+            apply(&host, &write_authority(), &replace).unwrap(),
             ManagedConfigApplyResult::Replaced
         );
 
         let observed = observe(&host, &read_authority(), &target).unwrap();
         let delete = plan(&target, &observed, &None);
         assert_eq!(
-            apply(&host, &write_authority(), &target, &delete).unwrap(),
+            apply(&host, &write_authority(), &delete).unwrap(),
             ManagedConfigApplyResult::Deleted
         );
         assert_eq!(observe(&host, &read_authority(), &target).unwrap(), None);
@@ -276,7 +257,7 @@ mod tests {
     #[test]
     fn unchanged_desired_bytes_produce_noop_without_host_mutation() {
         let host = MemoryFileHost::default();
-        let target = target("application-config");
+        let target = target();
         host.write(&write_authority(), target.path(), b"same")
             .unwrap();
 
@@ -284,7 +265,7 @@ mod tests {
         let planned = plan(&target, &observed, &Some(b"same".to_vec()));
         assert_eq!(planned.action(), &ReconcileAction::Noop);
         assert_eq!(
-            apply(&host, &write_authority(), &target, &planned).unwrap(),
+            apply(&host, &write_authority(), &planned).unwrap(),
             ManagedConfigApplyResult::Noop
         );
         assert_eq!(
@@ -294,24 +275,20 @@ mod tests {
     }
 
     #[test]
-    fn ownership_mismatch_rejects_before_host_mutation() {
-        let host = MemoryFileHost::default();
-        let source = target("source-owner");
-        let destination = target("destination-owner");
-        let planned = plan(&source, &None, &Some(b"value".to_vec()));
+    fn plan_carries_the_exact_target_used_for_application() {
+        let target = ManagedConfigTarget::new("one.conf");
+        let planned = plan(&target, &None, &Some(b"value".to_vec()));
 
-        let error = apply(&host, &write_authority(), &destination, &planned).unwrap_err();
-
-        assert_eq!(error.code().as_str(), "CON-MCONFIG-001");
+        assert_eq!(planned.target(), &target);
         assert_eq!(
-            observe(&host, &read_authority(), &destination).unwrap(),
-            None
+            planned.action(),
+            &ReconcileAction::Create(b"value".to_vec())
         );
     }
 
     #[test]
     fn observe_and_apply_host_failures_share_stable_boundary_identity() {
-        let target = target("application-config");
+        let target = target();
         let observe_error = observe(&FailingFileHost, &read_authority(), &target).unwrap_err();
         assert_eq!(observe_error.code().as_str(), "IO-MCONFIG-001");
         assert_eq!(
@@ -320,8 +297,7 @@ mod tests {
         );
 
         let planned = plan(&target, &None, &Some(b"value".to_vec()));
-        let apply_error =
-            apply(&FailingFileHost, &write_authority(), &target, &planned).unwrap_err();
+        let apply_error = apply(&FailingFileHost, &write_authority(), &planned).unwrap_err();
         assert_eq!(apply_error.code().as_str(), "IO-MCONFIG-001");
         assert_eq!(apply_error.source().unwrap().to_string(), "write failed");
     }

@@ -19,7 +19,6 @@ use audiacore_errors::CodedError;
 use audiacore_host::{FileReadAuthority, FileWriteAuthority};
 use audiacore_host_native::NativeFileHost;
 use audiacore_managed_config::{ManagedConfigApplyResult, ManagedConfigTarget};
-use audiacore_reconcile::OwnerId;
 use serde::Deserialize;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -56,7 +55,6 @@ struct ProofConfig {
 #[derive(Debug, Deserialize)]
 struct ManagedSettings {
     path: String,
-    owner: String,
     desired: String,
 }
 
@@ -90,7 +88,6 @@ fn resolved_config_builds_source_independent_request_and_native_effect_is_observ
             r#"
 [managed]
 path = "managed.conf"
-owner = "stage7-owner"
 desired = "configured-value"
 "#,
         )
@@ -98,8 +95,7 @@ desired = "configured-value"
         .resolve::<ProofConfig>()
         .unwrap();
 
-    let owner = OwnerId::new(resolved.value().managed.owner.clone()).unwrap();
-    let target = ManagedConfigTarget::new(resolved.value().managed.path.clone(), owner.clone());
+    let target = ManagedConfigTarget::new(resolved.value().managed.path.clone());
     let request_from_config = ManagedConfigRequest::new(
         target.clone(),
         Some(resolved.value().managed.desired.as_bytes().to_vec()),
@@ -152,10 +148,7 @@ desired = "configured-value"
     assert!(log.contains("result=\"created\"") || log.contains("result=created"));
     assert!(log.contains("completed"));
 
-    let outside_target = ManagedConfigTarget::new(
-        PathBuf::from("..").join("outside.conf"),
-        OwnerId::new("stage7-owner").unwrap(),
-    );
+    let outside_target = ManagedConfigTarget::new(PathBuf::from("..").join("outside.conf"));
     let outside_request = ManagedConfigRequest::new(outside_target, Some(b"denied".to_vec()));
     let error = execute_managed_config(&application, &execution, &outside_request).unwrap_err();
     assert_eq!(error.code().as_str(), "IO-MCONFIG-001");
