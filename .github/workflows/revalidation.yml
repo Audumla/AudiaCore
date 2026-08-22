@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: bash scripts/revalidate.sh
       - name: Capture Stage 5B resolved lockfile
-        if: runner.os == 'Linux'
+        if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: audiacore-stage5b-lockfile
