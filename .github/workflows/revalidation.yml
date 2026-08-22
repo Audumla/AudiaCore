@@ -71,6 +71,7 @@ jobs:
             grep -q 'due.sort();' "$time_src" || fail "due timers must have explicit deterministic ordering"
             grep -q 'impl CodedError for TimerIdError' "$time_src" || fail "timer identity validation lacks stable coded identity"
             ! grep -q 'pub fn due(' "$time_src" || fail "time regained redundant non-mutating due convenience"
+            ! grep -q 'impl Default for TimerSet' "$time_src" || fail "time regained unproven implicit empty construction"
             assert_no_match 'pub[[:space:]]+(struct|trait|enum)[[:space:]]+(Clock|TimeProvider|TimerManager|TimerRegistry|Scheduler|Task|Sleep|Retry|Backoff)' \
               "time capability defined an unearned clock/scheduler/runtime abstraction" "$time_src"
             echo "TIME_CAPABILITY_OK"
