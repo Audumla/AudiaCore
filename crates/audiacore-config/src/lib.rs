@@ -7,7 +7,7 @@
 use std::{error::Error, fmt};
 
 use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
 use toml::{Table, Value};
 
 const EMPTY_LAYER_ID: ErrorDefinition = ErrorDefinition::new(
@@ -216,6 +216,7 @@ const fn fnv_byte(state: u64, byte: u8) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
 
     #[derive(Debug, Deserialize, PartialEq, Eq)]
     struct TestConfig {
@@ -343,18 +344,12 @@ mod tests {
             .unwrap_err();
         assert_eq!(parse.code().as_str(), "CFG-CONFIG-001");
 
-        #[derive(Debug, Deserialize)]
-        struct RequiredConfig {
-            required: String,
-        }
-
         let resolution = ConfigLayers::new()
-            .merge_toml(layer("empty"), "other = true")
+            .merge_toml(layer("wrong-type"), "value = true")
             .unwrap()
-            .resolve::<RequiredConfig>()
+            .resolve::<u32>()
             .unwrap_err();
         assert_eq!(resolution.code().as_str(), "CFG-CONFIG-002");
-        let _ = resolution;
     }
 
     #[test]
