@@ -131,11 +131,17 @@ impl<T> ResolvedConfig<T> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ConfigLayers {
     merged: Table,
     revision_state: u64,
     layers: Vec<ConfigLayerId>,
+}
+
+impl Default for ConfigLayers {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConfigLayers {
@@ -147,11 +153,7 @@ impl ConfigLayers {
         }
     }
 
-    pub fn merge_toml(
-        mut self,
-        id: ConfigLayerId,
-        source: &str,
-    ) -> Result<Self, ConfigError> {
+    pub fn merge_toml(mut self, id: ConfigLayerId, source: &str) -> Result<Self, ConfigError> {
         let parsed = source
             .parse::<Table>()
             .map_err(|source| ConfigError::InvalidLayer {
@@ -235,6 +237,14 @@ mod tests {
 
     fn layer(id: &str) -> ConfigLayerId {
         ConfigLayerId::new(id).unwrap()
+    }
+
+    #[test]
+    fn default_and_new_share_the_same_provenance_basis() {
+        assert_eq!(
+            ConfigLayers::default().revision_state,
+            ConfigLayers::new().revision_state
+        );
     }
 
     #[test]
