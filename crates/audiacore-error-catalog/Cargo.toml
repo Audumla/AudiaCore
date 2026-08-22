@@ -1,0 +1,13 @@
+[package]
+name = "audiacore-error-catalog"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+audiacore-errors = { path = "../audiacore-errors" }
+audiacore-template = { path = "../audiacore-template" }
+serde = { version = "1", features = ["derive"] }
+yaml_serde = "0.10"
