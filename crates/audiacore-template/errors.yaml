@@ -1,0 +1,12 @@
+VAL-TEMPLATE-001:
+  kind: validation
+  message: "Template path must not be empty."
+  resolution: "Give every template placeholder a non-empty dotted path."
+VAL-TEMPLATE-002:
+  kind: validation
+  message: "Template placeholder is not closed."
+  resolution: "Close every '{' template placeholder with '}'."
+RES-TEMPLATE-001:
+  kind: resource
+  message: "Template value is missing."
+  resolution: "Provide every value required by the configured dotted paths before rendering."
