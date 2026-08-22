@@ -238,11 +238,7 @@ pub fn execute_managed_config<H: FileHost>(
 
     let desired = request.desired().map(<[u8]>::to_vec);
     let planned = plan(request.target(), &observed, &desired);
-    match apply(
-        composition.host(),
-        composition.write_authority(),
-        &planned,
-    ) {
+    match apply(composition.host(), composition.write_authority(), &planned) {
         Ok(result) => {
             tracing::info!(
                 outcome = "success",
