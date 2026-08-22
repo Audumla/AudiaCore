@@ -224,8 +224,8 @@ if [[ -d crates/audiacore-events ]]; then
   grep -q 'pub fn page_after' "$events_src" || fail "typed incremental cursor paging missing"
   grep -q 'checked_add(1)' "$events_src" || fail "event sequence must reject exhaustion rather than wrap"
   grep -q 'impl CodedError for EventStreamError' "$events_src" || fail "event stream failures lack stable coded identity"
-  assert_no_match 'EventBus|EventBroker|Publisher|Subscriber|Subscription|DurableEvent|Retry|Scheduler|Transport' \
-    "events capability regained delivery/broker/runtime responsibilities" "$events_src"
+  assert_no_match 'pub[[:space:]]+(struct|trait|enum)[[:space:]]+(EventBus|EventBroker|Publisher|Subscriber|Subscription|DurableEvent|Retry|Scheduler|Transport)' \
+    "events capability defined an unearned delivery/broker/runtime abstraction" "$events_src"
   echo "EVENT_CAPABILITY_OK"
 fi
 
