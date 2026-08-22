@@ -26,8 +26,8 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | 2 | Stable error contract | ACCEPTED |
 | 3A | Pure deterministic primitives | ACCEPTED |
 | 3B | Configuration | ACCEPTED |
-| 4A | File host contract + authority | IN PROGRESS |
-| 4B | Process host contract + authority | BLOCKED BY 4A |
+| 4A | File host contract + authority | ACCEPTED |
+| 4B | Process host contract + authority | IN PROGRESS |
 | 5 | Native host | BLOCKED BY 4 |
 | 6 | Application capabilities | BLOCKED BY 5 |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6 |
@@ -115,43 +115,45 @@ Workflow run: `32552433778` (run #72) — Ubuntu/macOS/Windows passed.
 
 **Additional correction found by revalidation:** derived `Default` would have initialized provenance differently from `ConfigLayers::new()`. `Default` now delegates to `new()` and a regression test locks that invariant.
 
-## Stage 4 — host contracts + authorities
-
-Stage 4 is split by effect family. A single generic host abstraction is explicitly rejected.
-
 ### Stage 4A — file host contract
 
-Immediate consumer requirement: managed configuration must be able to observe an optional file, atomically replace desired bytes through a native implementation, and remove a target. The contract should expose only the semantic operations required above the native layer.
+Accepted head: `a467d1cff5ff8b5330e399c12409da08bafbab9f`  
+Workflow run: `32552758268` (run #90) — Ubuntu/macOS/Windows passed.
 
-Candidate surface:
+**Accepted:** separate read/write authority values with absolute roots and a file effect contract containing only `read_optional`, `write`, and `remove`.
 
-- `FileReadAuthority { root }`;
-- `FileWriteAuthority { root }`;
-- `FileHost::read_optional`;
-- `FileHost::write`;
-- `FileHost::remove`.
+**Clean-room reductions from the previous implementation:** mandatory `read` is omitted because no accepted capability consumes it; there is no lexical `allows(path)` API; relative authority roots are rejected so grants do not silently depend on process CWD.
 
-Deliberate exclusions:
+Authority values describe grants only. Canonicalization, root existence, symlink handling and safe containment remain responsibilities of the concrete effect implementation.
 
-- no generic `read` method until a real consumer needs mandatory-read semantics;
-- no lexical `allows(path)` helper because prefix checks cannot prove canonical/symlink-safe containment;
-- no directory/list/watch API;
-- no file-store/service/manager abstraction;
-- no native `std::fs` effects in the contract crate;
-- no config-derived authority and no policy semantics.
+## Stage 4B — process host contract
 
-Authority values describe grants. The native implementation remains responsible for canonicalization and safe containment enforcement.
+Process execution is a known platform requirement and is revalidated separately because it has stronger lifecycle and secret-handling implications than filesystem operations.
 
-### Stage 4B — process host contract
+### Required semantics under test
 
-Process execution is a known platform requirement but is revalidated separately because it has stronger lifecycle and secret-handling implications than filesystem operations.
+- launch authority is an explicit allow-list of absolute program paths;
+- the requested executable path is absolute so spawning never depends implicitly on process CWD;
+- an optional child working directory, when supplied, is also absolute;
+- process environment values are explicitly sensitive and never appear in `Debug` output;
+- ambient environment inheritance is disabled by default and can only be enabled explicitly;
+- stdio ownership is explicit (`pipe`, `null`, or `inherit`);
+- spawning returns an owned child lifecycle rather than collapsing execution into a one-shot `run()` operation;
+- the child boundary exposes stream ownership, `try_wait`, `wait`, and `kill` without forcing an async runtime into the host layer.
 
-The stage must prove whether the minimum contract still requires:
+### Clean-room reductions to test
 
-- explicit allow-listed program authority;
-- secret-safe environment values;
-- owned child lifecycle rather than one-shot `run()`;
-- configurable stdio ownership;
-- synchronous low-level process contracts that do not force an async runtime into the foundation.
+The previous process contract exposed both borrowed and owned stdio accessors. Stage 4B will attempt the smaller contract: **owned `take_*` stream access only**. A later runtime can retain those streams however it needs without expanding this low-level contract prematurely.
 
-Network and secret-provider host contracts remain excluded. Sensitive values may be carried into process requests, but secret retrieval is not itself a host facility until a real consumer proves that boundary.
+`ProcessAuthority` is launch authority only. It does not claim to sandbox the child or constrain descendant process, filesystem, network, or account authority after launch.
+
+### Deliberate exclusions
+
+- no Tokio or generic async host future;
+- no process manager, scheduler, registry, session abstraction, or provider semantics;
+- no descendant process-tree ownership claim;
+- no network or secret-provider host contracts;
+- no environment acquisition inside the host contract;
+- no configuration or policy dependency.
+
+Sensitive values may be carried into process requests, but secret retrieval is not itself a host facility until a real consumer proves that boundary.
