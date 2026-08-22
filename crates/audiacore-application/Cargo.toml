@@ -1,0 +1,24 @@
+[package]
+name = "audiacore-application"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+audiacore-core = { path = "../audiacore-core" }
+audiacore-error-catalog = { path = "../audiacore-error-catalog" }
+audiacore-errors = { path = "../audiacore-errors" }
+audiacore-host = { path = "../audiacore-host" }
+audiacore-managed-config = { path = "../audiacore-managed-config" }
+audiacore-sensitive = { path = "../audiacore-sensitive" }
+audiacore-template = { path = "../audiacore-template" }
+tracing = "0.1"
+
+[dev-dependencies]
+audiacore-config = { path = "../audiacore-config" }
+audiacore-host-native = { path = "../audiacore-host-native" }
+audiacore-reconcile = { path = "../audiacore-reconcile" }
+serde = { version = "1", features = ["derive"] }
+tracing-subscriber = "0.3"
