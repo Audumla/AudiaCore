@@ -43,12 +43,19 @@ jobs:
       - name: Generate realignment lockfile
         shell: bash
         run: cargo generate-lockfile
+      - name: Format realignment sources
+        shell: bash
+        run: cargo fmt --all
       - name: Revalidate current stage
         shell: bash
         run: bash scripts/revalidate.sh
-      - name: Upload realignment lockfile
+      - name: Upload realignment bootstrap
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: configured-errors-lockfile
-          path: Cargo.lock
+          name: configured-errors-bootstrap
+          path: |
+            Cargo.lock
+            crates/audiacore-error-catalog/src/lib.rs
+            crates/audiacore-error-catalog/tests/workspace_catalogues.rs
+            crates/audiacore-template/src/lib.rs
