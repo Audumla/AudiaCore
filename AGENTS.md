@@ -2,6 +2,8 @@
 
 AudiaCore is a clean-room architecture revalidation repository.
 
+This file is repository guidance for external contributors and coding tools. It is not part of the AudiaCore product architecture and the word "agents" here does not imply an AI/agent runtime concept in Core.
+
 ## Working rules
 
 - Build upward one accepted layer at a time. Do not introduce later-layer abstractions early.
@@ -12,7 +14,7 @@ AudiaCore is a clean-room architecture revalidation repository.
 - Native effects cross narrow host contracts and live in concrete host implementations.
 - Configuration is resolved at composition boundaries; capabilities receive validated typed policy values, not configuration objects.
 - Policy decides behaviour. Authority determines which effects are permitted.
-- Reusable public failures use stable codes with canonical messages and resolutions while retaining typed local error context.
+- Reusable public failures expose stable coded identity. Component-owned `errors.yaml` catalogues own canonical human-facing message templates, kinds, and resolutions; typed local diagnostic context remains in Rust errors.
 - Domain events, operational tracing, and execution output are separate concepts.
 - Libraries may emit structured tracing only when a later stage proves a need; executable/application edges own subscribers/exporters.
 - Do not add global registries, service locators, generic manager frameworks, global event buses, or universal provider/plugin abstractions.
