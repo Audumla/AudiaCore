@@ -5,13 +5,9 @@
 
 use std::{collections::BTreeMap, error::Error, fmt};
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 
-const TIMER_ID_EMPTY: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-TIME-001"),
-    "Timer identifier must not be empty.",
-    "Provide a non-empty timer identifier.",
-);
+const TIMER_ID_EMPTY: ErrorCode = ErrorCode::new("VAL-TIME-001");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Timestamp(u64);
@@ -64,8 +60,8 @@ impl TimerId {
 pub struct TimerIdError;
 
 impl CodedError for TimerIdError {
-    fn definition(&self) -> &'static ErrorDefinition {
-        &TIMER_ID_EMPTY
+    fn code(&self) -> ErrorCode {
+        TIMER_ID_EMPTY
     }
 }
 
