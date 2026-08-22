@@ -41,8 +41,6 @@ fi
 rustc --version
 cargo --version
 
-# Stage-aware validation. Later stages extend this script rather than creating
-# competing validation entry points.
 if [[ -f Cargo.toml ]]; then
   cargo fmt --all -- --check
   cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -50,7 +48,36 @@ if [[ -f Cargo.toml ]]; then
 fi
 
 echo "REPOSITORY_DISCIPLINE_OK"
+
 if [[ -f Cargo.toml ]]; then
   echo "RUST_WORKSPACE_OK"
 fi
+
+# Stage 1: core is the dependency floor. It must remain dependency-free,
+# effect-free, and free of semantics owned by later layers.
+if [[ -d crates/audiacore-core ]]; then
+  core_manifest="crates/audiacore-core/Cargo.toml"
+  core_src="crates/audiacore-core/src"
+
+  if grep -Eq 'dependencies\]$' "$core_manifest"; then
+    fail "core must have zero normal/dev/build dependencies"
+  fi
+
+  if grep -R -n -E 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment' "$core_src"; then
+    fail "core contains an effect/runtime/serialization dependency surface"
+  fi
+
+  if grep -R -n -E 'CapabilityId|ComponentId|Lifecycle(State)?|Diagnostic(Code)?|ServiceRegistry|ProviderRegistry|PolicyRegistry|HostServices' "$core_src"; then
+    fail "core contains vocabulary owned by a later layer"
+  fi
+
+  grep -q 'pub struct Application<C>' "$core_src/lib.rs" || fail "core lacks opaque Application<C> composition"
+  grep -q 'pub struct ExecutionContext' "$core_src/lib.rs" || fail "core lacks execution/correlation identity carrier"
+  grep -q 'string_id!(ApplicationId' "$core_src/lib.rs" || fail "core lacks validated application identity"
+  grep -q 'string_id!(ExecutionId' "$core_src/lib.rs" || fail "core lacks validated execution identity"
+  grep -q 'string_id!(CorrelationId' "$core_src/lib.rs" || fail "core lacks validated correlation identity"
+
+  echo "CORE_LAYER_OK"
+fi
+
 echo "AUDIACORE_REVALIDATION_OK"
