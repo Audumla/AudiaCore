@@ -9,3 +9,24 @@ version = "0.1.0"
 [[package]]
 name = "audiacore-errors"
 version = "0.1.0"
+
+[[package]]
+name = "audiacore-reconcile"
+version = "0.1.0"
+dependencies = [
+ "audiacore-errors",
+]
+
+[[package]]
+name = "audiacore-sensitive"
+version = "0.1.0"
+dependencies = [
+ "audiacore-errors",
+]
+
+[[package]]
+name = "audiacore-template"
+version = "0.1.0"
+dependencies = [
+ "audiacore-errors",
+]
