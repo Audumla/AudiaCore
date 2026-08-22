@@ -237,17 +237,19 @@ if [[ -d crates/audiacore-host ]]; then
   echo "PROCESS_HOST_CONTRACT_OK"
 fi
 
-# Stage 5A: concrete native filesystem effects are permitted only in the
-# native-host implementation. Atomic file durability stays private.
 if [[ -d crates/audiacore-host-native ]]; then
   native_manifest="crates/audiacore-host-native/Cargo.toml"
   native_src="crates/audiacore-host-native/src"
-  assert_only_dependency "$native_manifest" "audiacore-host"
+  native_deps="$(normal_dependencies "$native_manifest")"
+  [[ "$native_deps" == "audiacore-host" ]] || fail "native host production dependency must be exactly audiacore-host"
+  grep -Fq '[dev-dependencies]' "$native_manifest" || fail "native process proof requires an explicit test-only sensitive dependency"
+  grep -Fq 'audiacore-sensitive = { path = "../audiacore-sensitive" }' "$native_manifest" || fail "native process proof must keep sensitive construction test-only"
 
-  if grep -R -n -E 'tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core|audiacore-errors|audiacore-sensitive' crates/audiacore-host-native; then
-    fail "native host must depend only on the narrow host contract"
+  if grep -R -n -E 'tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core|audiacore-errors' "$native_src"; then
+    fail "native host contains an upward/runtime/framework dependency"
   fi
 
+  # Stage 5A remains locked while Stage 5B is added beside it.
   grep -q '^mod file_store;' "$native_src/lib.rs" || fail "native atomic durability must remain a private module"
   if grep -Eq '^pub([[:space:]]*\([^)]*\))?[[:space:]]+mod[[:space:]]+file_store' "$native_src/lib.rs"; then
     fail "native atomic durability must not become a public file-store API"
@@ -255,7 +257,6 @@ if [[ -d crates/audiacore-host-native ]]; then
   if grep -R -n -E 'pub struct File(Store|Service|Manager)|pub trait File(Store|Service|Manager)' "$native_src"; then
     fail "native host must not recreate a public storage service abstraction"
   fi
-
   grep -q 'impl FileHost for NativeFileHost' "$native_src/lib.rs" || fail "native host lacks FileHost implementation"
   grep -q 'fs::canonicalize' "$native_src/lib.rs" || fail "native file authority must canonicalize at the effect boundary"
   grep -q 'fs::symlink_metadata' "$native_src/lib.rs" || fail "native write path must inspect symlink leaves without following them"
@@ -265,12 +266,30 @@ if [[ -d crates/audiacore-host-native ]]; then
   grep -q 'sync_all()' "$native_src/file_store.rs" || fail "atomic durability must sync file data"
   grep -q 'fs::rename' "$native_src/file_store.rs" || fail "atomic durability must replace through same-directory rename"
   grep -q 'TEMP_CREATE_ATTEMPTS' "$native_src/file_store.rs" || fail "temporary name collision retry is not bounded"
-
-  if grep -q 'impl ProcessHost for' "$native_src/lib.rs"; then
-    fail "native process effects are Stage 5B and must not enter Stage 5A"
-  fi
-
   echo "NATIVE_FILE_HOST_OK"
+
+  # Stage 5B: process effects are isolated in their own module and error type.
+  process_src="$native_src/process.rs"
+  [[ -f "$process_src" ]] || fail "native process implementation must be isolated in process.rs"
+  grep -q '^mod process;' "$native_src/lib.rs" || fail "native process module is not wired into host-native"
+  grep -q 'pub struct NativeProcessHost' "$process_src" || fail "native process host implementation missing"
+  grep -q 'pub enum NativeProcessError' "$process_src" || fail "native process must own an effect-specific error boundary"
+  grep -q 'impl ProcessHost for NativeProcessHost' "$process_src" || fail "native process host does not implement ProcessHost"
+  grep -q 'impl ProcessChild for NativeProcess' "$process_src" || fail "native child does not implement ProcessChild"
+  grep -q 'fs::canonicalize' "$process_src" || fail "native process authorization must canonicalize executable paths"
+  grep -q 'ProgramNotAuthorized' "$process_src" || fail "native process lacks launch-authority rejection"
+  grep -q 'command.env_clear()' "$process_src" || fail "native process must clear ambient environment by default"
+  grep -q 'command.env(key, value.expose())' "$process_src" || fail "native process must explicitly insert sensitive request environment"
+  grep -q 'impl Drop for NativeProcess' "$process_src" || fail "native process ownership lacks abandoned-child cleanup"
+  grep -q 'self.child.kill()' "$process_src" || fail "native process lacks direct-child termination"
+  grep -q 'self.child.wait()' "$process_src" || fail "native process lacks child reaping"
+  if grep -q 'NativeHostError' "$process_src"; then
+    fail "process effects must not widen the file-native error into a generic cross-effect hierarchy"
+  fi
+  if grep -Eq 'ProcessManager|ProcessRegistry|tokio|HostFuture|descendant|process.?tree' "$process_src"; then
+    fail "native process contains an unproven manager, async, or descendant-tree abstraction"
+  fi
+  echo "NATIVE_PROCESS_HOST_OK"
 fi
 
 echo "AUDIACORE_REVALIDATION_OK"
