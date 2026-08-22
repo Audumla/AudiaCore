@@ -1,7 +1,6 @@
 use std::{
     error::Error,
-    fmt,
-    fs,
+    fmt, fs,
     io::{self, Read, Write},
     path::{Path, PathBuf},
     process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
@@ -243,12 +242,7 @@ impl ProcessHost for NativeProcessHost {
 mod tests {
     use super::*;
     use audiacore_sensitive::Sensitive;
-    use std::{
-        ffi::OsString,
-        io::Read,
-        thread,
-        time::Duration,
-    };
+    use std::{ffi::OsString, thread, time::Duration};
 
     const PROBE_MODE: &str = "AUDIACORE_NATIVE_PROCESS_PROBE";
     const PROBE_VALUE: &str = "AUDIACORE_NATIVE_PROCESS_VALUE";
@@ -297,11 +291,42 @@ mod tests {
         let authority = ProcessAuthority::new(std::iter::empty()).unwrap();
         let request = ProcessRequest::new(program).unwrap();
 
-        let error = NativeProcessHost.spawn(&authority, request).unwrap_err();
-        assert!(matches!(
-            error,
-            NativeProcessError::ProgramNotAuthorized(_)
+        match NativeProcessHost.spawn(&authority, request) {
+            Err(error) => assert!(matches!(
+                error,
+                NativeProcessError::ProgramNotAuthorized(_)
+            )),
+            Ok(mut child) => {
+                let _ = child.kill();
+                panic!("unauthorized process was spawned");
+            }
+        }
+    }
+
+    #[test]
+    fn non_directory_working_directory_is_rejected_before_spawn() {
+        let path = std::env::temp_dir().join(format!(
+            "audiacore-process-working-file-{}",
+            std::process::id()
         ));
+        let _ = fs::remove_file(&path);
+        fs::write(&path, b"not a directory").unwrap();
+        let request = ProcessRequest::new(self_program())
+            .unwrap()
+            .current_dir_path(&path)
+            .unwrap();
+
+        match NativeProcessHost.spawn(&self_authority(), request) {
+            Err(error) => assert!(matches!(
+                error,
+                NativeProcessError::CurrentDirNotDirectory(_)
+            )),
+            Ok(mut child) => {
+                let _ = child.kill();
+                panic!("process was spawned with a non-directory working path");
+            }
+        }
+        fs::remove_file(path).unwrap();
     }
 
     #[test]
@@ -312,9 +337,7 @@ mod tests {
                 Sensitive::new(OsString::from("explicit-value")),
             )
             .unwrap();
-        let mut child = NativeProcessHost
-            .spawn(&self_authority(), request)
-            .unwrap();
+        let mut child = NativeProcessHost.spawn(&self_authority(), request).unwrap();
         let mut stdout = child.take_stdout().unwrap();
         let mut output = String::new();
         stdout.read_to_string(&mut output).unwrap();
@@ -330,9 +353,7 @@ mod tests {
         let request = probe_request("sleep")
             .stdout(ProcessStdio::Null)
             .stderr(ProcessStdio::Null);
-        let mut child = NativeProcessHost
-            .spawn(&self_authority(), request)
-            .unwrap();
+        let mut child = NativeProcessHost.spawn(&self_authority(), request).unwrap();
 
         assert!(child.try_wait().unwrap().is_none());
         child.kill().unwrap();
