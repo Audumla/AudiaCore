@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsString,
     fs::{self, File, OpenOptions},
     io::{self, Write},
     path::{Path, PathBuf},
@@ -19,50 +20,10 @@ fn temporary_path(path: &Path, id: u64) -> io::Result<PathBuf> {
             format!("path has no file name: {path:?}"),
         )
     })?;
-    let mut temp_name = OsName::new();
-    temp_name.push(".");
-    temp_name.push_os(name);
+    let mut temp_name = OsString::from(".");
+    temp_name.push(name);
     temp_name.push(format!(".tmp-{}-{id}", std::process::id()));
-    Ok(path.with_file_name(temp_name.finish()))
-}
-
-struct OsName(OsStringBuilder);
-
-impl OsName {
-    fn new() -> Self {
-        Self(OsStringBuilder::default())
-    }
-
-    fn push(&mut self, value: impl AsRef<str>) {
-        self.0.push(value.as_ref());
-    }
-
-    fn push_os(&mut self, value: &std::ffi::OsStr) {
-        self.0.push_os(value);
-    }
-
-    fn finish(self) -> std::ffi::OsString {
-        self.0.finish()
-    }
-}
-
-#[derive(Default)]
-struct OsStringBuilder {
-    value: std::ffi::OsString,
-}
-
-impl OsStringBuilder {
-    fn push(&mut self, value: &str) {
-        self.value.push(value);
-    }
-
-    fn push_os(&mut self, value: &std::ffi::OsStr) {
-        self.value.push(value);
-    }
-
-    fn finish(self) -> std::ffi::OsString {
-        self.value
-    }
+    Ok(path.with_file_name(temp_name))
 }
 
 fn next_temporary_path(path: &Path) -> io::Result<PathBuf> {
@@ -111,13 +72,6 @@ impl Drop for TempGuard {
 }
 
 pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let parent = path.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("path has no parent: {path:?}"),
-        )
-    })?;
-
     let (temp, mut file) = create_temporary_file(path)?;
     let mut guard = TempGuard::new(temp.clone());
     file.write_all(bytes)
@@ -131,6 +85,12 @@ pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
 
     #[cfg(unix)]
     {
+        let parent = path.parent().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("path has no parent: {path:?}"),
+            )
+        })?;
         let directory =
             File::open(parent).map_err(|source| io_error("open parent directory", parent, source))?;
         directory
