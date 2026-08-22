@@ -6,6 +6,7 @@ members = [
     "crates/audiacore-template",
     "crates/audiacore-reconcile",
     "crates/audiacore-config",
+    "crates/audiacore-host",
 ]
 resolver = "3"
 
