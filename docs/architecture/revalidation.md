@@ -28,9 +28,9 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | 3B | Configuration | ACCEPTED |
 | 4A | File host contract + authority | ACCEPTED |
 | 4B | Process host contract + authority | ACCEPTED |
-| 5A | Native file effects + containment | IN PROGRESS |
-| 5B | Native process effects + lifecycle | BLOCKED BY 5A |
-| 6 | Application capabilities | BLOCKED BY 5 |
+| 5A | Native file effects + containment | ACCEPTED |
+| 5B | Native process effects + lifecycle | IN PROGRESS |
+| 6 | Application capabilities | BLOCKED BY 5B |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6 |
 | 8 | Full layer-lock audit | BLOCKED BY 7 |
 
@@ -144,34 +144,35 @@ Stage 5 is split by effect family so native filesystem safety can be proven inde
 
 ### Stage 5A — native file effects + containment
 
-The concrete implementation may depend on `audiacore-host` only. It owns native filesystem effects and implementation errors; low-level native errors are **not** forced into the stable coded-error contract until a reusable capability projects them across its public boundary.
+Accepted head: `43453a48f5da0564f83aa56f381879f9bb710c7c`  
+Workflow run: `32553515690` (run #130) — Ubuntu/macOS/Windows passed.
 
-Required semantics under test:
+**Accepted:** `audiacore-host-native` depends only on `audiacore-host`; authority roots are canonicalized and must exist as directories; target paths are resolved under authority rather than process CWD; ordinary parent/absolute/symlink escapes are rejected; optional reads, writes, overwrites and removes are authority-mediated; atomic same-directory replacement is private implementation detail; collision handling never deletes another owner's temporary file.
 
-- canonicalize the authority root at the effect boundary and require it to be an existing directory;
-- relative target paths resolve under the authority root, never process CWD;
-- absolute target paths are accepted only when their canonical/effective location remains within the canonical authority root;
-- existing reads canonicalize the target and reject escapes;
-- a missing optional-read returns `None` only when its existing parent canonicalizes inside the authority root;
-- writes require an existing canonical parent inside the authority root;
-- a symlink leaf is never replaced by a managed write/remove operation;
-- replacement is performed through a uniquely created same-directory temporary file, file `sync_all`, atomic `rename`, and parent-directory `sync_all` on Unix;
-- temporary-file collision is retried without deleting another owner's file;
-- temporary files are cleaned on failed writes;
-- remove is authority-mediated and uses the same write-target validation.
+**Boundary decision:** no public/workspace `file-store` crate exists. Durability machinery remains a private module inside `audiacore-host-native`.
 
-### Clean-room boundary decision
-
-There will be **no public or workspace-level `file-store` crate**. Atomic durability is a private implementation detail inside `audiacore-host-native`; it has no independent semantic consumer and therefore does not earn a public layer boundary.
-
-### Security claim boundary
-
-The native implementation must reject ordinary `..`/absolute/symlink path escapes at the operation boundary. Using portable `std::fs` path operations does **not** prove a race-free filesystem sandbox against a hostile actor concurrently replacing path components. AudiaCore will not claim that stronger guarantee until a platform-specific handle-relative design is deliberately implemented and tested.
-
-### Acceptance tests
-
-At minimum, the three-OS stage must prove optional missing read, create, overwrite, read, remove, parent escape rejection, authority-root validation, and temporary-file collision handling. Unix additionally proves directory-symlink and leaf-symlink escape rejection. Overwrite is exercised on Windows as an explicit cross-platform replacement proof.
+**Security claim boundary:** portable `std::fs` checks reject the tested path and symlink escapes but do not claim hostile-concurrent-filesystem race-proof sandboxing. A stronger claim would require a deliberate platform-specific handle-relative design.
 
 ### Stage 5B — native process effects + lifecycle
 
-Blocked until Stage 5A is accepted. It will independently prove executable canonicalization/authorization, deny-by-default environment inheritance, explicit sensitive environment insertion, stdio mapping, owned stream transfer, wait/try-wait/kill, and direct-child cleanup without claiming descendant process-tree containment.
+This stage independently proves the process implementation without changing the accepted file boundary.
+
+Required semantics under test:
+
+- canonicalize the requested executable at spawn time and compare it with canonicalized allow-list entries;
+- reject an executable that is not in launch authority before spawning;
+- require an explicitly supplied working directory to canonicalize to an existing directory;
+- map `ProcessStdio::{Pipe, Null, Inherit}` directly to native stdio ownership;
+- clear ambient environment by default and insert only explicitly supplied sensitive environment values;
+- preserve explicitly opted-in environment inheritance;
+- return a concrete owned child implementing ownership-only stream transfer, `try_wait`, `wait`, and direct-child `kill`;
+- dropping an owned live direct child performs best-effort kill + wait so handle abandonment does not intentionally leave that direct child running or unreaped.
+
+Clean-room boundary decisions:
+
+- process implementation has its own `NativeProcessError`; Stage 5B does not widen the accepted file error into a generic cross-effect error hierarchy;
+- kill-on-drop is an ownership safety invariant of the concrete child handle, not a scheduler/retry/session policy;
+- there is no descendant process-tree containment claim;
+- no async runtime, process manager, scheduler, provider/session abstraction, network host, or secret-provider host is introduced.
+
+Acceptance tests must exercise unauthorized launch rejection and a real cross-platform self-executable child process. The self-executable probe must demonstrate successful piped output, explicit environment insertion with ambient environment cleared, wait/try-wait behaviour, and explicit termination of a live direct child without requiring shell-specific commands.
