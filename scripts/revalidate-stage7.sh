@@ -91,6 +91,9 @@ grep -q 'FileReadAuthority' "$proof" || fail "read authority is not explicitly s
 grep -q 'FileWriteAuthority' "$proof" || fail "write authority is not explicitly supplied"
 grep -q 'tracing::subscriber::with_default' "$proof" || fail "observability subscriber is not edge-owned"
 grep -q 'fs::read' "$proof" || fail "end-to-end proof does not verify the real native file effect"
+grep -q 'IO-MCONFIG-001' "$proof" || fail "real native failure does not assert stable managed-config error identity"
+grep -q 'present_error(' "$proof" || fail "real coded failure is not passed through configured presentation"
+grep -Fq 'application.composition().errors()' "$proof" || fail "configured presentation is not using the caller-owned application catalogue"
 
 grep -q 'sensitive_message_values_are_redacted_without_exposure' "$src" \
   || fail "sensitive error-message projection is untested"
