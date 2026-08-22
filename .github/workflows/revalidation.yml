@@ -40,6 +40,16 @@ jobs:
         with:
           toolchain: '1.95.0'
           components: rustfmt, clippy
+      - name: Resolve Stage 4B lockfile
+        shell: bash
+        run: cargo generate-lockfile
       - name: Revalidate current stage
         shell: bash
         run: bash scripts/revalidate.sh
+      - name: Capture Stage 4B resolved lockfile
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audiacore-stage4b-lockfile
+          path: Cargo.lock
+          if-no-files-found: error
