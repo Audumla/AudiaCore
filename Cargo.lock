@@ -44,6 +44,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "audiacore-managed-config"
+version = "0.1.0"
+dependencies = [
+ "audiacore-errors",
+ "audiacore-host",
+ "audiacore-reconcile",
+]
+
+[[package]]
 name = "audiacore-reconcile"
 version = "0.1.0"
 dependencies = [
