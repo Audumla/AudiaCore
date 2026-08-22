@@ -40,6 +40,15 @@ jobs:
         with:
           toolchain: '1.95.0'
           components: rustfmt, clippy
+      - name: Generate realignment lockfile
+        shell: bash
+        run: cargo generate-lockfile
       - name: Revalidate current stage
         shell: bash
         run: bash scripts/revalidate.sh
+      - name: Upload realignment lockfile
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: configured-errors-lockfile
+          path: Cargo.lock
