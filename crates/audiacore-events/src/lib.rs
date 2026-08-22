@@ -8,38 +8,14 @@
 use std::{collections::VecDeque, error::Error, fmt, num::NonZeroUsize};
 
 use audiacore_core::CorrelationId;
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 
-const EVENT_ID_EMPTY: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-EVENT-001"),
-    "Event identifier must not be empty.",
-    "Provide a non-empty event, stream, or causation identifier.",
-);
-const ZERO_RETENTION_LIMIT: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-EVENT-002"),
-    "Event retention limit must be greater than zero.",
-    "Configure a positive retention limit or use an unbounded event policy.",
-);
-const ZERO_PAGE_LIMIT: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-EVENT-003"),
-    "Event page limit must be greater than zero.",
-    "Request at least one event per page.",
-);
-const CURSOR_EXPIRED: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CON-EVENT-001"),
-    "Event cursor has expired.",
-    "Restart from an available cursor or use durable storage when replay is required.",
-);
-const CURSOR_AHEAD: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CON-EVENT-002"),
-    "Event cursor is ahead of the stream.",
-    "Use a cursor at or before the latest available event sequence.",
-);
-const SEQUENCE_EXHAUSTED: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("RES-EVENT-001"),
-    "Event sequence space is exhausted.",
-    "Start a new event stream rather than allowing sequence identity to wrap.",
-);
+const EVENT_ID_EMPTY: ErrorCode = ErrorCode::new("VAL-EVENT-001");
+const ZERO_RETENTION_LIMIT: ErrorCode = ErrorCode::new("VAL-EVENT-002");
+const ZERO_PAGE_LIMIT: ErrorCode = ErrorCode::new("VAL-EVENT-003");
+const CURSOR_EXPIRED: ErrorCode = ErrorCode::new("CON-EVENT-001");
+const CURSOR_AHEAD: ErrorCode = ErrorCode::new("CON-EVENT-002");
+const SEQUENCE_EXHAUSTED: ErrorCode = ErrorCode::new("RES-EVENT-001");
 
 macro_rules! event_id {
     ($name:ident, $label:literal) => {
@@ -76,8 +52,8 @@ event_id!(CausationId, "causation id");
 pub struct EventIdError(&'static str);
 
 impl CodedError for EventIdError {
-    fn definition(&self) -> &'static ErrorDefinition {
-        &EVENT_ID_EMPTY
+    fn code(&self) -> ErrorCode {
+        EVENT_ID_EMPTY
     }
 }
 
@@ -200,13 +176,13 @@ pub enum EventError {
 }
 
 impl CodedError for EventError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::ZeroRetentionLimit => &ZERO_RETENTION_LIMIT,
-            Self::ZeroPageLimit => &ZERO_PAGE_LIMIT,
-            Self::CursorExpired { .. } => &CURSOR_EXPIRED,
-            Self::CursorAhead { .. } => &CURSOR_AHEAD,
-            Self::SequenceExhausted => &SEQUENCE_EXHAUSTED,
+            Self::ZeroRetentionLimit => ZERO_RETENTION_LIMIT,
+            Self::ZeroPageLimit => ZERO_PAGE_LIMIT,
+            Self::CursorExpired { .. } => CURSOR_EXPIRED,
+            Self::CursorAhead { .. } => CURSOR_AHEAD,
+            Self::SequenceExhausted => SEQUENCE_EXHAUSTED,
         }
     }
 }
