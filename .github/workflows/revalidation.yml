@@ -1,0 +1,45 @@
+name: audiacore-revalidation
+
+on:
+  push:
+    branches:
+      - 'revalidation/**'
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'crates/**'
+      - 'examples/**'
+      - 'scripts/revalidate.sh'
+      - 'docs/architecture/**'
+      - 'AGENTS.md'
+      - '.github/workflows/revalidation.yml'
+
+concurrency:
+  group: audiacore-revalidation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-15
+          - windows-2025
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.95.0'
+          components: rustfmt, clippy
+      - name: Revalidate current stage
+        shell: bash
+        run: bash scripts/revalidate.sh
