@@ -69,12 +69,11 @@ pub struct ErrorDefinition {
 }
 
 impl ErrorDefinition {
-    pub const fn new(
-        code: ErrorCode,
-        message: &'static str,
-        resolution: &'static str,
-    ) -> Self {
-        assert!(!message.is_empty(), "canonical error message must not be empty");
+    pub const fn new(code: ErrorCode, message: &'static str, resolution: &'static str) -> Self {
+        assert!(
+            !message.is_empty(),
+            "canonical error message must not be empty"
+        );
         assert!(!resolution.is_empty(), "error resolution must not be empty");
         Self {
             code,
