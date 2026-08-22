@@ -86,33 +86,127 @@ errors_manifest="crates/audiacore-errors/Cargo.toml"
 errors_src="crates/audiacore-errors/src"
 [[ -f "$errors_manifest" ]] || fail "stable error crate missing"
 if grep -Eq 'dependencies\]$' "$errors_manifest"; then
-  fail "stable error contract must have zero normal/dev/build dependencies"
+  fail "stable error identity must have zero normal/dev/build dependencies"
 fi
 assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-core' \
-  "stable error contract contains upward/effect/runtime semantics" "$errors_src" "$errors_manifest"
+  "stable error identity contains upward/effect/runtime semantics" "$errors_src" "$errors_manifest"
 grep -q 'pub struct ErrorCode' "$errors_src/lib.rs" || fail "missing ErrorCode"
 grep -q 'pub enum ErrorCategory' "$errors_src/lib.rs" || fail "missing ErrorCategory"
-grep -q 'pub struct ErrorDefinition' "$errors_src/lib.rs" || fail "missing ErrorDefinition"
 grep -q 'pub trait CodedError' "$errors_src/lib.rs" || fail "missing CodedError"
+grep -q 'Constraint' "$errors_src/lib.rs" || fail "CON category drifted from constraint semantics"
+grep -q 'Resource' "$errors_src/lib.rs" || fail "RES category drifted from resource semantics"
+! grep -q 'pub struct ErrorDefinition' "$errors_src/lib.rs" || fail "stable identity layer must not own configured presentation"
+! grep -Eq '^[[:space:]]*(Conflict|Resolution),' "$errors_src/lib.rs" || fail "error prefix category semantics drifted"
+assert_no_match 'ErrorDefinition::new|canonical_message\(' \
+  "canonical error presentation must not be hard-coded in Rust capability sources" crates
+[[ ! -e crates/audiacore-errors/errors.yaml ]] || fail "stable identity crate must not become a central authored error catalogue"
+if find crates -type f \( -name 'error-resolutions.yaml' -o -name 'error-messages.yaml' \) -print -quit | grep -q .; then
+  fail "legacy split error presentation files are forbidden; use owner-local errors.yaml"
+fi
+
 duplicate_error_codes="$(
-  find crates -type f -name '*.rs' -exec grep -hoE 'ErrorCode::new\("[A-Z][A-Z0-9-]*-[0-9]{3}"\)' {} + 2>/dev/null \
+  find crates -type f -name '*.rs' -exec grep -hoE 'const[[:space:]]+[A-Z0-9_]+:[[:space:]]+ErrorCode[[:space:]]*=[[:space:]]*ErrorCode::new\("[A-Z][A-Z0-9-]*-[0-9]{3}"\)' {} + 2>/dev/null \
     | sed -E 's/.*ErrorCode::new\("([^"]+)"\).*/\1/' | sort | uniq -d || true
 )"
-[[ -z "$duplicate_error_codes" ]] || fail "duplicate stable error codes: $duplicate_error_codes"
-echo "ERROR_CONTRACT_OK"
+[[ -z "$duplicate_error_codes" ]] || fail "duplicate stable production error codes: $duplicate_error_codes"
 
-for crate in sensitive template reconcile; do
+python - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+code_re = re.compile(
+    r'const\s+[A-Z0-9_]+\s*:\s*ErrorCode\s*=\s*ErrorCode::new\("([A-Z][A-Z0-9-]*-\d{3})"\);'
+)
+yaml_code_re = re.compile(r'^([A-Z]{2,}(?:-[A-Z][A-Z0-9]*)+-\d{3}):\s*$', re.MULTILINE)
+
+all_yaml: dict[str, Path] = {}
+problems: list[str] = []
+
+for crate in sorted(Path("crates").glob("audiacore-*")):
+    src = crate / "src"
+    rust_codes: set[str] = set()
+    if src.is_dir():
+        for path in src.rglob("*.rs"):
+            rust_codes.update(code_re.findall(path.read_text()))
+
+    catalogue = crate / "errors.yaml"
+    yaml_codes: set[str] = set()
+    if catalogue.is_file():
+        text = catalogue.read_text()
+        matches = yaml_code_re.findall(text)
+        if len(matches) != len(set(matches)):
+            problems.append(f"{catalogue}: duplicate top-level stable code")
+        yaml_codes = set(matches)
+        for code in yaml_codes:
+            previous = all_yaml.get(code)
+            if previous is not None:
+                problems.append(f"{code}: defined by both {previous} and {catalogue}")
+            else:
+                all_yaml[code] = catalogue
+
+    if rust_codes != yaml_codes:
+        missing = sorted(rust_codes - yaml_codes)
+        extra = sorted(yaml_codes - rust_codes)
+        if missing:
+            problems.append(f"{crate}: production codes missing from errors.yaml: {missing}")
+        if extra:
+            problems.append(f"{crate}: errors.yaml codes without production identity: {extra}")
+
+if problems:
+    print("REVALIDATION_FAIL: error catalogue ownership/coverage mismatch", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+
+echo "ERROR_IDENTITY_OK"
+
+for crate in sensitive reconcile; do
   dir="crates/audiacore-$crate"
   assert_dependencies "$dir/Cargo.toml" "audiacore-errors"
   assert_no_dev_or_build_dependencies "$dir/Cargo.toml"
-  assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-core|audiacore-host' \
-    "$crate must remain pure foundation semantics" "$dir"
+  assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-core|audiacore-host' \
+    "$crate must remain pure foundation semantics" "$dir/src"
   grep -q 'impl CodedError for' "$dir/src/lib.rs" || fail "$crate failures need stable coded identity"
 done
+
+template_manifest="crates/audiacore-template/Cargo.toml"
+template_src="crates/audiacore-template/src/lib.rs"
+expected_template_deps="$(printf '%s\n' audiacore-errors serde_json)"
+assert_dependencies "$template_manifest" "$expected_template_deps"
+assert_no_dev_or_build_dependencies "$template_manifest"
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-core|audiacore-host' \
+  "template must remain pure mapping interpolation" crates/audiacore-template/src
+grep -q 'pub struct Template' "$template_src" || fail "Template missing"
+grep -q 'resolve_path' "$template_src" || fail "dotted mapping path resolution missing"
+grep -q 'TemplateContext' "$template_src" || fail "explicit mapping template context missing"
+grep -Fq ".find('{')" "$template_src" || fail "single-brace template parsing contract missing"
+! grep -Fq 'find("{{")' "$template_src" || fail "legacy flat double-brace slot syntax returned"
+grep -q 'impl CodedError for TemplateError' "$template_src" || fail "template failures need stable coded identity"
+
 grep -q 'pub struct Sensitive<T>' crates/audiacore-sensitive/src/lib.rs || fail "Sensitive<T> missing"
-grep -q 'pub struct Template' crates/audiacore-template/src/lib.rs || fail "Template missing"
 grep -q 'pub enum ReconcileAction<T>' crates/audiacore-reconcile/src/lib.rs || fail "reconciliation effect-as-data missing"
 echo "PURE_FOUNDATION_PRIMITIVES_OK"
+
+catalog_manifest="crates/audiacore-error-catalog/Cargo.toml"
+catalog_src="crates/audiacore-error-catalog/src/lib.rs"
+expected_catalog_deps="$(printf '%s\n' audiacore-errors audiacore-template serde yaml_serde)"
+assert_dependencies "$catalog_manifest" "$expected_catalog_deps"
+assert_no_dev_or_build_dependencies "$catalog_manifest"
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-(core|config|host|host-native|events|workflow|time|managed-config)' \
+  "error catalogue contains discovery/effects/upward application semantics" "$catalog_src" "$catalog_manifest"
+for symbol in ErrorDefinition ErrorCatalogue RenderedError ErrorCatalogueError; do
+  grep -q "$symbol" "$catalog_src" || fail "configured error catalogue missing $symbol"
+done
+grep -q 'pub fn register_yaml' "$catalog_src" || fail "component error registration boundary missing"
+grep -q 'pub fn overlay_yaml' "$catalog_src" || fail "explicit configured error override boundary missing"
+grep -q 'pub fn render' "$catalog_src" || fail "configured error rendering boundary missing"
+grep -q 'source: String' "$catalog_src" || fail "configured error definition provenance missing"
+grep -q 'TemplateContext' "$catalog_src" || fail "error messages are not rendered from explicit mapping params"
+assert_no_match 'OnceLock|OnceCell|lazy_static|static[[:space:]].*(ErrorCatalogue|BTreeMap)|Global.*Catalogue|ErrorRegistry' \
+  "error catalogue regained a process-global registry" "$catalog_src"
+echo "CONFIGURED_ERROR_PRESENTATION_OK"
 
 config_manifest="crates/audiacore-config/Cargo.toml"
 config_src="crates/audiacore-config/src/lib.rs"
@@ -123,7 +217,7 @@ grep -Fq 'toml = { version = "1.1.4", default-features = false, features = ["std
 grep -Fq 'serde = { version = "1.0.229", features = ["derive"] }' "$config_manifest" \
   || fail "config test derive dependency changed"
 assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-core|audiacore-host|Policy|from_env|from_file|read_to_string' \
-  "config acquired effects/provider/policy/upward semantics" crates/audiacore-config
+  "config acquired effects/provider/policy/upward semantics" crates/audiacore-config/src
 grep -q 'pub struct ConfigLayerId' "$config_src" || fail "ConfigLayerId missing"
 grep -q 'pub struct ConfigRevision' "$config_src" || fail "ConfigRevision missing"
 grep -q 'pub struct ResolvedConfig<T>' "$config_src" || fail "ResolvedConfig<T> missing"
@@ -140,7 +234,7 @@ expected_host_deps="$(printf '%s\n' audiacore-errors audiacore-sensitive)"
 assert_dependencies "$host_manifest" "$expected_host_deps"
 assert_no_dev_or_build_dependencies "$host_manifest"
 assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core' \
-  "host contract contains native effects/runtime/config/core coupling" crates/audiacore-host
+  "host contract contains native effects/runtime/config/core coupling" crates/audiacore-host/src
 for symbol in FileReadAuthority FileWriteAuthority FileHost ProcessAuthority ProcessRequest ProcessStdio ProcessExit ProcessChild ProcessHost; do
   grep -q "$symbol" "$host_src" || fail "host contract missing $symbol"
 done
@@ -209,7 +303,7 @@ if [[ -d crates/audiacore-events ]]; then
   assert_dependencies "$events_manifest" "$expected_event_deps"
   assert_no_dev_or_build_dependencies "$events_manifest"
   assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-host|audiacore-config|audiacore-host-native' \
-    "events capability contains effects/runtime/config/native coupling" crates/audiacore-events
+    "events capability contains effects/runtime/config/native coupling" crates/audiacore-events/src
   for symbol in EventId EventStreamId CausationId EventSequence EventCursor EventPolicy EventEnvelope EventPage EventStream; do
     grep -q "$symbol" "$events_src" || fail "events capability missing $symbol"
   done
@@ -228,7 +322,7 @@ if [[ -d crates/audiacore-workflow ]]; then
   assert_dependencies "$workflow_manifest" "audiacore-errors"
   assert_no_dev_or_build_dependencies "$workflow_manifest"
   assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|config|host|host-native)' \
-    "workflow capability contains effects/clock/runtime/upward coupling" crates/audiacore-workflow
+    "workflow capability contains effects/clock/runtime/upward coupling" crates/audiacore-workflow/src
   for symbol in WorkflowInstanceId WorkflowStatus WorkflowDefinition WorkflowTransition WorkflowInstance WorkflowReceipt WorkflowSnapshot WorkflowError; do
     grep -q "$symbol" "$workflow_src" || fail "workflow capability missing $symbol"
   done
@@ -246,14 +340,13 @@ if [[ -d crates/audiacore-workflow ]]; then
   echo "WORKFLOW_CAPABILITY_OK"
 fi
 
-
 if [[ -d crates/audiacore-time ]]; then
   time_manifest="crates/audiacore-time/Cargo.toml"
   time_src="crates/audiacore-time/src/lib.rs"
   assert_dependencies "$time_manifest" "audiacore-errors"
   assert_no_dev_or_build_dependencies "$time_manifest"
   assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|config|host|host-native)' \
-    "time capability contains effects/clock/runtime/upward coupling" crates/audiacore-time
+    "time capability contains effects/clock/runtime/upward coupling" crates/audiacore-time/src
   for symbol in Timestamp Deadline TimerId TimerSet; do
     grep -q "$symbol" "$time_src" || fail "time capability missing $symbol"
   done
@@ -272,7 +365,6 @@ if [[ -d crates/audiacore-time ]]; then
   echo "TIME_CAPABILITY_OK"
 fi
 
-
 if [[ -d crates/audiacore-managed-config ]]; then
   managed_manifest="crates/audiacore-managed-config/Cargo.toml"
   managed_src="crates/audiacore-managed-config/src/lib.rs"
@@ -280,7 +372,7 @@ if [[ -d crates/audiacore-managed-config ]]; then
   assert_dependencies "$managed_manifest" "$expected_managed_deps"
   assert_no_dev_or_build_dependencies "$managed_manifest"
   assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|time|config|host-native)' \
-    "managed config contains unmediated effects/runtime/upward coupling" crates/audiacore-managed-config
+    "managed config contains unmediated effects/runtime/upward coupling" crates/audiacore-managed-config/src
   for symbol in ManagedConfigTarget ManagedConfigPlan ManagedConfigApplyResult ManagedConfigError; do
     grep -q "$symbol" "$managed_src" || fail "managed config capability missing $symbol"
   done
