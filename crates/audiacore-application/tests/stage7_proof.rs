@@ -12,10 +12,7 @@ use audiacore_application::{
     ManagedConfigComposition, ManagedConfigPolicy, execute_managed_config,
 };
 use audiacore_config::{ConfigLayerId, ConfigLayers};
-use audiacore_core::{
-    Application, ApplicationId, ApplicationIdentity, ApplicationInstanceId, CorrelationId,
-    ExecutionContext, ExecutionId,
-};
+use audiacore_core::{Application, ApplicationId, CorrelationId, ExecutionContext, ExecutionId};
 use audiacore_error_catalog::ErrorCatalogue;
 use audiacore_host::{FileReadAuthority, FileWriteAuthority};
 use audiacore_host_native::NativeFileHost;
@@ -75,13 +72,6 @@ impl Write for BufferWriter {
     }
 }
 
-fn application_identity() -> ApplicationIdentity {
-    ApplicationIdentity::new(
-        ApplicationId::new("stage7-app").unwrap(),
-        ApplicationInstanceId::new("stage7-instance").unwrap(),
-    )
-}
-
 fn execution_context() -> ExecutionContext {
     ExecutionContext::new(
         ExecutionId::new("execution-7").unwrap(),
@@ -126,7 +116,7 @@ desired = "configured-value"
         .unwrap();
 
     let application = Application::new(
-        application_identity(),
+        ApplicationId::new("stage7-app").unwrap(),
         ManagedConfigComposition::new(NativeFileHost, read_authority, write_authority, errors),
     );
     let execution = execution_context();
@@ -153,7 +143,6 @@ desired = "configured-value"
     let log = String::from_utf8(captured.lock().unwrap().clone()).unwrap();
     assert!(log.contains("managed_config.apply"));
     assert!(log.contains("application_id=stage7-app"));
-    assert!(log.contains("application_instance_id=stage7-instance"));
     assert!(log.contains("execution_id=execution-7"));
     assert!(log.contains("correlation_id=correlation-7"));
     assert!(log.contains("result=Created"));
