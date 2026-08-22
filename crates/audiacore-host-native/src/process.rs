@@ -292,10 +292,7 @@ mod tests {
         let request = ProcessRequest::new(program).unwrap();
 
         match NativeProcessHost.spawn(&authority, request) {
-            Err(error) => assert!(matches!(
-                error,
-                NativeProcessError::ProgramNotAuthorized(_)
-            )),
+            Err(error) => assert!(matches!(error, NativeProcessError::ProgramNotAuthorized(_))),
             Ok(mut child) => {
                 let _ = child.kill();
                 panic!("unauthorized process was spawned");
