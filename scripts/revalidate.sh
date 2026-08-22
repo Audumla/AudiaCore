@@ -43,7 +43,6 @@ assert_no_match() {
   fi
 }
 
-# Repository/build discipline.
 for path in .gitignore LICENSE README.md AGENTS.md rust-toolchain.toml \
   docs/architecture/revalidation.md .github/workflows/revalidation.yml; do
   [[ -f "$path" ]] || fail "missing required repository file: $path"
@@ -66,7 +65,6 @@ cargo test --workspace --locked
 echo "REPOSITORY_DISCIPLINE_OK"
 echo "RUST_WORKSPACE_OK"
 
-# Dependency floor: core and stable errors remain independent and effect-free.
 core_manifest="crates/audiacore-core/Cargo.toml"
 core_src="crates/audiacore-core/src"
 [[ -f "$core_manifest" ]] || fail "core crate missing"
@@ -103,7 +101,6 @@ duplicate_error_codes="$(
 [[ -z "$duplicate_error_codes" ]] || fail "duplicate stable error codes: $duplicate_error_codes"
 echo "ERROR_CONTRACT_OK"
 
-# Pure deterministic foundation.
 for crate in sensitive template reconcile; do
   dir="crates/audiacore-$crate"
   assert_dependencies "$dir/Cargo.toml" "audiacore-errors"
@@ -137,7 +134,6 @@ grep -q 'impl CodedError for ConfigError' "$config_src" || fail "config coded er
 echo "CONFIG_FOUNDATION_OK"
 echo "PURE_FOUNDATION_OK"
 
-# Host contracts grant effects but perform no native effects.
 host_manifest="crates/audiacore-host/Cargo.toml"
 host_src="crates/audiacore-host/src/lib.rs"
 expected_host_deps="$(printf '%s\n' audiacore-errors audiacore-sensitive)"
@@ -164,7 +160,6 @@ echo "FILE_HOST_CONTRACT_OK"
 echo "PROCESS_HOST_CONTRACT_OK"
 echo "HOST_BOUNDARY_OK"
 
-# Native effects: only host-native may own filesystem/process implementation.
 native_manifest="crates/audiacore-host-native/Cargo.toml"
 native_src="crates/audiacore-host-native/src"
 assert_dependencies "$native_manifest" "audiacore-host"
@@ -172,7 +167,6 @@ grep -Fq '[dev-dependencies]' "$native_manifest" || fail "native process proof t
 grep -Fq 'audiacore-sensitive = { path = "../audiacore-sensitive" }' "$native_manifest" || fail "native sensitive dependency must remain test-only"
 assert_no_match 'tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core|audiacore-errors' \
   "native host contains upward/runtime/framework semantics" "$native_src"
-
 grep -q '^mod file_store;' "$native_src/lib.rs" || fail "private atomic durability module missing"
 ! grep -Eq '^pub([[:space:]]*\([^)]*\))?[[:space:]]+mod[[:space:]]+file_store' "$native_src/lib.rs" \
   || fail "file_store must remain private"
@@ -208,7 +202,6 @@ assert_no_match 'ProcessManager|ProcessRegistry|tokio|HostFuture|descendant|proc
 echo "NATIVE_PROCESS_HOST_OK"
 echo "NATIVE_HOST_OK"
 
-# Stage 6A: domain events are a pure caller-owned application capability.
 if [[ -d crates/audiacore-events ]]; then
   events_manifest="crates/audiacore-events/Cargo.toml"
   events_src="crates/audiacore-events/src/lib.rs"
@@ -223,7 +216,7 @@ if [[ -d crates/audiacore-events ]]; then
   grep -q 'pub fn bounded' "$events_src" || fail "EventPolicy bounded validation missing"
   grep -q 'pub fn page_after' "$events_src" || fail "typed incremental cursor paging missing"
   grep -q 'checked_add(1)' "$events_src" || fail "event sequence must reject exhaustion rather than wrap"
-  grep -q 'impl CodedError for EventStreamError' "$events_src" || fail "event stream failures lack stable coded identity"
+  grep -q 'impl CodedError for EventError' "$events_src" || fail "event capability failures lack stable coded identity"
   assert_no_match 'pub[[:space:]]+(struct|trait|enum)[[:space:]]+(EventBus|EventBroker|Publisher|Subscriber|Subscription|DurableEvent|Retry|Scheduler|Transport)' \
     "events capability defined an unearned delivery/broker/runtime abstraction" "$events_src"
   echo "EVENT_CAPABILITY_OK"
