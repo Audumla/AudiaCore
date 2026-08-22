@@ -22,8 +22,8 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | Stage | Layer / proof | Key question | Status |
 | --- | --- | --- | --- |
 | 0 | Repository + build discipline | Can the repository enforce cleanliness and repeatable cross-platform validation before code exists? | ACCEPTED |
-| 1 | Core | What semantics are genuinely universal enough to sit at the dependency floor? | READY |
-| 2 | Error contract | What stable failure identity is required without creating a global error framework? | BLOCKED BY 1 |
+| 1 | Core | What semantics are genuinely universal enough to sit at the dependency floor? | ACCEPTED |
+| 2 | Error contract | What stable failure identity is required without creating a global error framework? | READY |
 | 3 | Pure foundation semantics | Which reusable deterministic concepts earn independent crates? | BLOCKED BY 2 |
 | 4 | Host contracts | Which effects are proven strongly enough to require narrow authority-bearing contracts? | BLOCKED BY 3 |
 | 5 | Native host | Can OS effects be contained behind those contracts without leaking implementation APIs? | BLOCKED BY 4 |
@@ -68,44 +68,30 @@ core
 
 No product crate belongs in Stage 0. The stage exists only to establish a reproducible build environment, one canonical repository instruction surface, one canonical revalidation plan, and one cross-platform validation entry point.
 
-### Deliberately excluded
-
-- `Cargo.toml` / product workspace
-- core/domain types
-- error abstractions
-- application/runtime assumptions
-
-### Acceptance
-
-- Rust 1.95.0 pinned with rustfmt and Clippy.
-- One `AGENTS.md`, one revalidation document, one validation script, one workflow.
-- Hygiene gate rejects legacy Python/Node/runtime debris, machine-local config and duplicate provider instruction files.
-- No generated build output committed.
-- Same validation script passes on Ubuntu, macOS, and Windows.
-
 ### Evidence
 
 - Stage implementation head: `def74266e38e69553b3481978a74d9a13ed97f57`
-- Workflow: `audiacore-revalidation` run `32550330851` (run #2)
+- Workflow run: `32550330851` (run #2)
 - Ubuntu 24.04: passed
 - macOS 15: passed
 - Windows 2025: passed
 
 **Stage 0 accepted.**
 
-## Stage 1 — core hypothesis
+## Stage 1 — core
 
-Before implementation, the clean-room hypothesis is deliberately narrow:
+### Hypothesis
 
 > Core should contain only semantics that every future application composition needs regardless of capability, provider, host or runtime choice.
 
-Candidate concepts to prove rather than assume:
+### Accepted surface
 
 - validated `ApplicationId`;
-- validated `ExecutionId` and `CorrelationId` because cross-cutting execution identity is required by later errors/events/tracing;
-- opaque `Application<C>` composition container so unrelated application compositions do not widen core.
+- validated `ExecutionId` and `CorrelationId`;
+- `ExecutionContext` as an identity carrier only;
+- opaque `Application<C>` composition.
 
-Explicitly excluded unless this stage produces a real need:
+### Explicitly rejected from core
 
 - capability/component identifiers;
 - lifecycle state machines;
@@ -114,4 +100,36 @@ Explicitly excluded unless this stage produces a real need:
 - service registries/DI;
 - I/O, environment, async runtime, tracing, serialization or provider semantics.
 
-Stage 1 acceptance will require zero normal dependencies, no effect APIs, behavioural tests for identity/composition, and an architecture gate proving forbidden vocabulary/dependencies stay out of core.
+### Evidence
+
+- First validation attempt failed only rustfmt; semantics were unchanged.
+- Accepted head: `d626ef9886e4ad9eb8ae23f46ea8ee4b80e26126`
+- Workflow run: `32550518423` (run #16)
+- Ubuntu 24.04: passed
+- macOS 15: passed
+- Windows 2025: passed
+- Core has zero crate dependencies and passes the effect/vocabulary architecture gate.
+
+**Stage 1 accepted.**
+
+## Stage 2 — stable error contract hypothesis
+
+The error layer must solve only stable reusable failure identity. It must not become a global runtime error registry or force every low-level Rust error into one universal hierarchy.
+
+Candidate minimal surface:
+
+- `ErrorCode` with compile-time shape validation;
+- `ErrorCategory` derived from the code prefix rather than independently stored;
+- `ErrorDefinition { code, message, resolution }`;
+- optional `CodedError` trait for reusable capability/application boundaries.
+
+Design constraints:
+
+- zero normal dependencies;
+- one stable code identifies one semantic condition;
+- canonical message/resolution are static and safe;
+- dynamic context stays in the owning typed error;
+- no registry, YAML loader, logger, serializer, transport envelope, manager or dependency on core;
+- core remains below and independent of the error contract.
+
+Stage 2 acceptance will require code-shape/category tests, duplicate-code enforcement in CI, zero dependencies, and no upward/application vocabulary.
