@@ -1,14 +1,15 @@
-//! Stable reusable error identity without a global error framework.
+//! Stable reusable error identity without presentation ownership.
 //!
-//! Owning crates keep their typed Rust errors and dynamic context. This crate
-//! provides only stable code/message/resolution metadata for failures that
-//! cross reusable capability or application boundaries.
+//! Owning crates keep typed Rust errors and dynamic diagnostic context. This
+//! crate owns only stable error-code identity and prefix-derived category.
+//! Human-facing message templates, kinds, resolutions and catalogue loading
+//! belong to the configured presentation layer above this crate.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorCategory {
     Validation,
-    Conflict,
-    Resolution,
+    Constraint,
+    Resource,
     Io,
     Network,
     Timeout,
@@ -24,7 +25,7 @@ pub struct ErrorCode(&'static str);
 
 impl ErrorCode {
     pub const fn new(code: &'static str) -> Self {
-        assert!(valid_code(code), "invalid stable error code");
+        assert!(Self::is_valid(code), "invalid stable error code");
         Self(code)
     }
 
@@ -32,13 +33,17 @@ impl ErrorCode {
         self.0
     }
 
+    pub const fn is_valid(code: &str) -> bool {
+        valid_code(code)
+    }
+
     pub fn category(self) -> ErrorCategory {
         if self.0.starts_with("VAL-") {
             ErrorCategory::Validation
         } else if self.0.starts_with("CON-") {
-            ErrorCategory::Conflict
+            ErrorCategory::Constraint
         } else if self.0.starts_with("RES-") {
-            ErrorCategory::Resolution
+            ErrorCategory::Resource
         } else if self.0.starts_with("IO-") {
             ErrorCategory::Io
         } else if self.0.starts_with("NET-") {
@@ -61,67 +66,17 @@ impl ErrorCode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ErrorDefinition {
-    code: ErrorCode,
-    message: &'static str,
-    resolution: &'static str,
-}
-
-impl ErrorDefinition {
-    pub const fn new(code: ErrorCode, message: &'static str, resolution: &'static str) -> Self {
-        assert!(
-            !message.is_empty(),
-            "canonical error message must not be empty"
-        );
-        assert!(!resolution.is_empty(), "error resolution must not be empty");
-        Self {
-            code,
-            message,
-            resolution,
-        }
-    }
-
-    pub const fn code(self) -> ErrorCode {
-        self.code
-    }
-
-    pub const fn message(self) -> &'static str {
-        self.message
-    }
-
-    pub const fn resolution(self) -> &'static str {
-        self.resolution
-    }
-
-    pub fn category(self) -> ErrorCategory {
-        self.code.category()
-    }
-}
-
 pub trait CodedError {
-    fn definition(&self) -> &'static ErrorDefinition;
-
-    fn code(&self) -> ErrorCode {
-        self.definition().code()
-    }
+    fn code(&self) -> ErrorCode;
 
     fn category(&self) -> ErrorCategory {
-        self.definition().category()
-    }
-
-    fn canonical_message(&self) -> &'static str {
-        self.definition().message()
-    }
-
-    fn resolution(&self) -> &'static str {
-        self.definition().resolution()
+        self.code().category()
     }
 }
 
 const fn valid_code(code: &str) -> bool {
     let bytes = code.as_bytes();
-    if bytes.len() < 8 {
+    if bytes.len() < 9 {
         return false;
     }
 
@@ -153,11 +108,13 @@ const fn valid_code(code: &str) -> bool {
     if previous_hyphen || first_hyphen == bytes.len() || last_hyphen == first_hyphen {
         return false;
     }
+    if !valid_prefix(bytes, first_hyphen) {
+        return false;
+    }
 
     if bytes.len() - last_hyphen - 1 != 3 {
         return false;
     }
-
     let mut suffix = last_hyphen + 1;
     while suffix < bytes.len() {
         if !bytes[suffix].is_ascii_digit() {
@@ -166,7 +123,28 @@ const fn valid_code(code: &str) -> bool {
         suffix += 1;
     }
 
-    valid_prefix(bytes, first_hyphen)
+    let mut segment_start = first_hyphen + 1;
+    if segment_start >= last_hyphen {
+        return false;
+    }
+    index = segment_start;
+    while index < last_hyphen {
+        if index == segment_start {
+            if !bytes[index].is_ascii_uppercase() {
+                return false;
+            }
+        } else if bytes[index] == b'-' {
+            segment_start = index + 1;
+            if segment_start >= last_hyphen {
+                return false;
+            }
+        } else if !bytes[index].is_ascii_uppercase() && !bytes[index].is_ascii_digit() {
+            return false;
+        }
+        index += 1;
+    }
+
+    true
 }
 
 const fn valid_prefix(bytes: &[u8], length: usize) -> bool {
@@ -202,32 +180,30 @@ const fn prefix_eq(bytes: &[u8], length: usize, prefix: &[u8]) -> bool {
 mod tests {
     use super::*;
 
-    const EXAMPLE: ErrorDefinition = ErrorDefinition::new(
-        ErrorCode::new("CON-ERRORS-001"),
-        "Example semantic condition occurred.",
-        "Correct the example condition and retry.",
-    );
-
     struct ExampleError;
 
     impl CodedError for ExampleError {
-        fn definition(&self) -> &'static ErrorDefinition {
-            &EXAMPLE
+        fn code(&self) -> ErrorCode {
+            ErrorCode::new("CON-ERRORS-001")
         }
     }
 
     #[test]
-    fn definitions_keep_one_code_message_resolution_and_category() {
+    fn coded_errors_expose_identity_not_presentation() {
         let error = ExampleError;
         assert_eq!(error.code().as_str(), "CON-ERRORS-001");
-        assert_eq!(error.category(), ErrorCategory::Conflict);
+        assert_eq!(error.category(), ErrorCategory::Constraint);
+    }
+
+    #[test]
+    fn prefix_categories_preserve_original_contract_meaning() {
         assert_eq!(
-            error.canonical_message(),
-            "Example semantic condition occurred."
+            ErrorCode::new("RES-EXAMPLE-001").category(),
+            ErrorCategory::Resource
         );
         assert_eq!(
-            error.resolution(),
-            "Correct the example condition and retry."
+            ErrorCode::new("CON-EXAMPLE-001").category(),
+            ErrorCategory::Constraint
         );
     }
 
@@ -236,6 +212,15 @@ mod tests {
         let code = ErrorCode::new("VAL-EXAMPLE-COMPONENT-001");
         assert_eq!(code.as_str(), "VAL-EXAMPLE-COMPONENT-001");
         assert_eq!(code.category(), ErrorCategory::Validation);
+    }
+
+    #[test]
+    fn dynamic_validation_matches_the_static_constructor_contract() {
+        assert!(ErrorCode::is_valid("EXT-GPTAUTO-004"));
+        assert!(!ErrorCode::is_valid("VAL-1COMPONENT-001"));
+        assert!(!ErrorCode::is_valid("VAL-COMPONENT_-001"));
+        assert!(!ErrorCode::is_valid("VAL--001"));
+        assert!(!ErrorCode::is_valid("BAD-COMPONENT-001"));
     }
 
     #[test]
