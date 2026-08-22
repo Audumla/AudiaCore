@@ -171,14 +171,14 @@ pub fn present_error<E: CodedError>(
         },
         Err(presentation_error) => {
             tracing::warn!(
-                error_code = %code,
+                error_code = code.as_str(),
                 presentation_error = %presentation_error,
                 "configured error presentation failed"
             );
             PresentedError {
                 code,
                 kind: code.category().as_str().to_owned(),
-                message: format!("Error {code}."),
+                message: format!("Error {}.", code.as_str()),
                 resolution: "Use the stable error code with diagnostic logs to identify the underlying condition."
                     .to_owned(),
                 configured: false,
@@ -197,12 +197,10 @@ pub fn execute_managed_config<H: FileHost>(
     execution: &ExecutionContext,
     policy: &ManagedConfigPolicy,
 ) -> Result<ManagedConfigApplyResult, ManagedConfigError<H::Error>> {
-    let identity = application.identity();
     let composition = application.composition();
     let span = tracing::info_span!(
         "managed_config.apply",
-        application_id = %identity.application_id(),
-        application_instance_id = %identity.instance_id(),
+        application_id = %application.id(),
         execution_id = %execution.execution_id(),
         correlation_id = %execution.correlation_id(),
     );
@@ -215,7 +213,10 @@ pub fn execute_managed_config<H: FileHost>(
     ) {
         Ok(observed) => observed,
         Err(error) => {
-            tracing::error!(error_code = %error.code(), "managed configuration observation failed");
+            tracing::error!(
+                error_code = error.code().as_str(),
+                "managed configuration observation failed"
+            );
             return Err(error);
         }
     };
@@ -233,7 +234,10 @@ pub fn execute_managed_config<H: FileHost>(
             Ok(result)
         }
         Err(error) => {
-            tracing::error!(error_code = %error.code(), "managed configuration apply failed");
+            tracing::error!(
+                error_code = error.code().as_str(),
+                "managed configuration apply failed"
+            );
             Err(error)
         }
     }
