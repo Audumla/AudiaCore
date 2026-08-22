@@ -27,8 +27,9 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | 3A | Pure deterministic primitives | ACCEPTED |
 | 3B | Configuration | ACCEPTED |
 | 4A | File host contract + authority | ACCEPTED |
-| 4B | Process host contract + authority | IN PROGRESS |
-| 5 | Native host | BLOCKED BY 4 |
+| 4B | Process host contract + authority | ACCEPTED |
+| 5A | Native file effects + containment | IN PROGRESS |
+| 5B | Native process effects + lifecycle | BLOCKED BY 5A |
 | 6 | Application capabilities | BLOCKED BY 5 |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6 |
 | 8 | Full layer-lock audit | BLOCKED BY 7 |
@@ -126,34 +127,51 @@ Workflow run: `32552758268` (run #90) — Ubuntu/macOS/Windows passed.
 
 Authority values describe grants only. Canonicalization, root existence, symlink handling and safe containment remain responsibilities of the concrete effect implementation.
 
-## Stage 4B — process host contract
+### Stage 4B — process host contract
 
-Process execution is a known platform requirement and is revalidated separately because it has stronger lifecycle and secret-handling implications than filesystem operations.
+Accepted head: `df7c6685b8e2048035ef70367ed7e0f9f7043ad6`  
+Workflow run: `32553116555` (run #106) — Ubuntu/macOS/Windows passed.
 
-### Required semantics under test
+**Accepted:** explicit absolute executable allow-list; absolute requested executable and optional working directory; deny-by-default ambient environment inheritance; sensitive environment values; explicit stdio modes; owned child lifecycle with ownership-only `take_stdin`, `take_stdout`, and `take_stderr`; `try_wait`, `wait`, and direct-child `kill`.
 
-- launch authority is an explicit allow-list of absolute program paths;
-- the requested executable path is absolute so spawning never depends implicitly on process CWD;
-- an optional child working directory, when supplied, is also absolute;
-- process environment values are explicitly sensitive and never appear in `Debug` output;
-- ambient environment inheritance is disabled by default and can only be enabled explicitly;
-- stdio ownership is explicit (`pipe`, `null`, or `inherit`);
-- spawning returns an owned child lifecycle rather than collapsing execution into a one-shot `run()` operation;
-- the child boundary exposes stream ownership, `try_wait`, `wait`, and `kill` without forcing an async runtime into the host layer.
-
-### Clean-room reductions to test
-
-The previous process contract exposed both borrowed and owned stdio accessors. Stage 4B will attempt the smaller contract: **owned `take_*` stream access only**. A later runtime can retain those streams however it needs without expanding this low-level contract prematurely.
+**Clean-room reductions from the previous implementation:** borrowed stdio accessors are omitted; no generic async future/runtime boundary exists; there is no one-shot process `run`, process manager, scheduler, registry, network host, or secret-provider host.
 
 `ProcessAuthority` is launch authority only. It does not claim to sandbox the child or constrain descendant process, filesystem, network, or account authority after launch.
 
-### Deliberate exclusions
+## Stage 5 — native host implementation
 
-- no Tokio or generic async host future;
-- no process manager, scheduler, registry, session abstraction, or provider semantics;
-- no descendant process-tree ownership claim;
-- no network or secret-provider host contracts;
-- no environment acquisition inside the host contract;
-- no configuration or policy dependency.
+Stage 5 is split by effect family so native filesystem safety can be proven independently of process execution.
 
-Sensitive values may be carried into process requests, but secret retrieval is not itself a host facility until a real consumer proves that boundary.
+### Stage 5A — native file effects + containment
+
+The concrete implementation may depend on `audiacore-host` only. It owns native filesystem effects and implementation errors; low-level native errors are **not** forced into the stable coded-error contract until a reusable capability projects them across its public boundary.
+
+Required semantics under test:
+
+- canonicalize the authority root at the effect boundary and require it to be an existing directory;
+- relative target paths resolve under the authority root, never process CWD;
+- absolute target paths are accepted only when their canonical/effective location remains within the canonical authority root;
+- existing reads canonicalize the target and reject escapes;
+- a missing optional-read returns `None` only when its existing parent canonicalizes inside the authority root;
+- writes require an existing canonical parent inside the authority root;
+- a symlink leaf is never replaced by a managed write/remove operation;
+- replacement is performed through a uniquely created same-directory temporary file, file `sync_all`, atomic `rename`, and parent-directory `sync_all` on Unix;
+- temporary-file collision is retried without deleting another owner's file;
+- temporary files are cleaned on failed writes;
+- remove is authority-mediated and uses the same write-target validation.
+
+### Clean-room boundary decision
+
+There will be **no public or workspace-level `file-store` crate**. Atomic durability is a private implementation detail inside `audiacore-host-native`; it has no independent semantic consumer and therefore does not earn a public layer boundary.
+
+### Security claim boundary
+
+The native implementation must reject ordinary `..`/absolute/symlink path escapes at the operation boundary. Using portable `std::fs` path operations does **not** prove a race-free filesystem sandbox against a hostile actor concurrently replacing path components. AudiaCore will not claim that stronger guarantee until a platform-specific handle-relative design is deliberately implemented and tested.
+
+### Acceptance tests
+
+At minimum, the three-OS stage must prove optional missing read, create, overwrite, read, remove, parent escape rejection, authority-root validation, and temporary-file collision handling. Unix additionally proves directory-symlink and leaf-symlink escape rejection. Overwrite is exercised on Windows as an explicit cross-platform replacement proof.
+
+### Stage 5B — native process effects + lifecycle
+
+Blocked until Stage 5A is accepted. It will independently prove executable canonicalization/authorization, deny-by-default environment inheritance, explicit sensitive environment insertion, stdio mapping, owned stream transfer, wait/try-wait/kill, and direct-child cleanup without claiming descendant process-tree containment.
