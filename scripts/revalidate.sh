@@ -272,4 +272,31 @@ if [[ -d crates/audiacore-time ]]; then
   echo "TIME_CAPABILITY_OK"
 fi
 
+
+if [[ -d crates/audiacore-managed-config ]]; then
+  managed_manifest="crates/audiacore-managed-config/Cargo.toml"
+  managed_src="crates/audiacore-managed-config/src/lib.rs"
+  expected_managed_deps="$(printf '%s\n' audiacore-errors audiacore-host audiacore-reconcile)"
+  assert_dependencies "$managed_manifest" "$expected_managed_deps"
+  assert_no_dev_or_build_dependencies "$managed_manifest"
+  assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|time|config|host-native)' \
+    "managed config contains unmediated effects/runtime/upward coupling" crates/audiacore-managed-config
+  for symbol in ManagedConfigTarget ManagedConfigPlan ManagedConfigApplyResult ManagedConfigError; do
+    grep -q "$symbol" "$managed_src" || fail "managed config capability missing $symbol"
+  done
+  grep -q 'host.read_optional' "$managed_src" || fail "managed config observation must use optional file-host read"
+  grep -q 'reconcile_presence' "$managed_src" || fail "managed config must delegate pure presence planning to reconcile"
+  grep -q 'pub fn observe' "$managed_src" || fail "managed config observation boundary missing"
+  grep -q 'pub fn plan' "$managed_src" || fail "managed config planning boundary missing"
+  grep -q 'pub fn apply' "$managed_src" || fail "managed config apply boundary missing"
+  grep -q 'OwnershipMismatch' "$managed_src" || fail "managed config ownership guard missing"
+  grep -q 'impl<E> CodedError for ManagedConfigError<E>' "$managed_src" || fail "managed config failures lack stable coded identity"
+  ! grep -q 'fn read(' "$managed_src" || fail "managed config reintroduced mandatory file read"
+  assert_no_match 'InvalidPlanShape|EffectId|Receipt' \
+    "managed config regained obsolete generic plan/receipt shape" "$managed_src"
+  assert_no_match 'pub[[:space:]]+(struct|trait|enum)[[:space:]]+(ManagedConfigManager|ManagedConfigRegistry|Watcher|Scheduler|Retry|Backoff|Parser|Cas|CAS)' \
+    "managed config defined an unearned manager/watcher/runtime/concurrency abstraction" "$managed_src"
+  echo "MANAGED_CONFIG_CAPABILITY_OK"
+fi
+
 echo "AUDIACORE_REVALIDATION_OK"
