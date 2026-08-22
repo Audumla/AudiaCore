@@ -5,6 +5,9 @@
 //! semantics.
 
 mod file_store;
+mod process;
+
+pub use process::{NativeProcess, NativeProcessError, NativeProcessHost};
 
 use std::{
     error::Error,
