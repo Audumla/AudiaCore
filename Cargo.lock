@@ -28,6 +28,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "audiacore-host-native"
+version = "0.1.0"
+dependencies = [
+ "audiacore-host",
+]
+
+[[package]]
 name = "audiacore-reconcile"
 version = "0.1.0"
 dependencies = [
