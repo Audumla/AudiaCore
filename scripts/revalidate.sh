@@ -237,4 +237,40 @@ if [[ -d crates/audiacore-host ]]; then
   echo "PROCESS_HOST_CONTRACT_OK"
 fi
 
+# Stage 5A: concrete native filesystem effects are permitted only in the
+# native-host implementation. Atomic file durability stays private.
+if [[ -d crates/audiacore-host-native ]]; then
+  native_manifest="crates/audiacore-host-native/Cargo.toml"
+  native_src="crates/audiacore-host-native/src"
+  assert_only_dependency "$native_manifest" "audiacore-host"
+
+  if grep -R -n -E 'tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core|audiacore-errors|audiacore-sensitive' crates/audiacore-host-native; then
+    fail "native host must depend only on the narrow host contract"
+  fi
+
+  grep -q '^mod file_store;' "$native_src/lib.rs" || fail "native atomic durability must remain a private module"
+  if grep -Eq '^pub([[:space:]]*\([^)]*\))?[[:space:]]+mod[[:space:]]+file_store' "$native_src/lib.rs"; then
+    fail "native atomic durability must not become a public file-store API"
+  fi
+  if grep -R -n -E 'pub struct File(Store|Service|Manager)|pub trait File(Store|Service|Manager)' "$native_src"; then
+    fail "native host must not recreate a public storage service abstraction"
+  fi
+
+  grep -q 'impl FileHost for NativeFileHost' "$native_src/lib.rs" || fail "native host lacks FileHost implementation"
+  grep -q 'fs::canonicalize' "$native_src/lib.rs" || fail "native file authority must canonicalize at the effect boundary"
+  grep -q 'fs::symlink_metadata' "$native_src/lib.rs" || fail "native write path must inspect symlink leaves without following them"
+  grep -q 'OutsideAuthority' "$native_src/lib.rs" || fail "native file host lacks containment rejection"
+  grep -q 'SymbolicLinkWriteTarget' "$native_src/lib.rs" || fail "native file host lacks symlink-leaf rejection"
+  grep -q 'create_new(true)' "$native_src/file_store.rs" || fail "atomic durability must uniquely create temporary files"
+  grep -q 'sync_all()' "$native_src/file_store.rs" || fail "atomic durability must sync file data"
+  grep -q 'fs::rename' "$native_src/file_store.rs" || fail "atomic durability must replace through same-directory rename"
+  grep -q 'TEMP_CREATE_ATTEMPTS' "$native_src/file_store.rs" || fail "temporary name collision retry is not bounded"
+
+  if grep -q 'impl ProcessHost for' "$native_src/lib.rs"; then
+    fail "native process effects are Stage 5B and must not enter Stage 5A"
+  fi
+
+  echo "NATIVE_FILE_HOST_OK"
+fi
+
 echo "AUDIACORE_REVALIDATION_OK"
