@@ -63,8 +63,8 @@ The clean-room rebuild may simplify this structure whenever a proposed boundary 
 | 5B | Native process effects + lifecycle | ACCEPTED |
 | 6A | Events capability | ACCEPTED |
 | 6B | Workflow capability | ACCEPTED |
-| 6C | Time capability | IN PROGRESS |
-| 6D | Managed-config capability | BLOCKED BY 6C |
+| 6C | Time capability | ACCEPTED |
+| 6D | Managed-config capability | IN PROGRESS |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6D |
 | 8 | Full layer-lock audit | BLOCKED BY 7 |
 
@@ -141,7 +141,7 @@ The portable implementation does not claim hostile-concurrent-filesystem race-pr
 
 ### Stage 5B — native process effects
 
-Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1d15a16`  
+Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1e3ad4a82f40f1d15a16`  
 Workflow run: `32554534159` (#154) — Ubuntu/macOS/Windows passed.
 
 Accepted an isolated `process.rs` implementation with its own `NativeProcessError`; canonical requested-program/allow-list comparison; canonical existing working-directory validation; direct native stdio mapping; deny-by-default ambient environment with explicit sensitive insertion; owned child stream transfer; `try_wait`, `wait`, and `kill`; and best-effort direct-child kill+wait on dropped live handles.
@@ -183,33 +183,30 @@ Clean-room decisions:
 
 No core/events/config/host/native dependency, clock, scheduler, retry/backoff, async runtime, task executor, compensation engine, persistence/repository abstraction, workflow manager, or registry was introduced.
 
+### Stage 6C — time
+
+Accepted head: `2e4c770f473ef3f5177a830590160bd9510ec8b9`  
+Workflow run: `32556194161` (#218) — Ubuntu/macOS/Windows passed.
+
+Accepted absolute caller-supplied millisecond `Timestamp`; `Deadline`; validated `TimerId`; and a caller-owned deterministic `TimerSet` supporting explicit construction, arm, cancel, next-deadline observation, and ordered due draining.
+
+Clean-room reductions:
+
+- the old `Timestamp::checked_add(Duration)` API was removed because converting `Duration::as_millis()` would silently discard sub-millisecond precision and no accepted consumer yet requires duration arithmetic;
+- the old public non-mutating `due()` view was removed; `drain_due(now)` is the proven transition boundary;
+- timer lookup, `len`, `is_empty`, and implicit `Default` construction were removed as unproven conveniences;
+- deterministic due order is explicit: deadline timestamp first, then `TimerId` as the stable tie-breaker;
+- `TimerSet::new()` deliberately remains explicit; the Clippy `new_without_default` lint is narrowly allowed and the architecture gate forbids silently restoring `Default`.
+
+No clock provider, system-time acquisition, sleeping, scheduler, task runtime, retry/backoff, global timer registry, Core, Events, Workflow, Config, Host, or Native dependency was introduced.
+
 ## Stage 6 — application capabilities
 
 Capabilities are revalidated independently. They may use lower semantic contracts but may not acquire configuration, perform unmediated native I/O, own global runtime infrastructure, or turn policy into authority.
 
-### Stage 6C — time
-
-Current target: revalidate caller-supplied timestamp/deadline semantics first and require the timer collection to justify itself independently; no clock, sleep, scheduler, task, or runtime ownership is assumed.
-
-Likely requirements evidence from the prior foundation:
-
-- `Timestamp`;
-- `Deadline`;
-- `TimerId`;
-- caller-owned deterministic `TimerSet`;
-- caller supplies current time explicitly;
-- deterministic due ordering;
-- no clock ownership;
-- no sleeping;
-- no scheduler;
-- no async runtime;
-- no global timers.
-
-The old dependency evidence was only the stable error contract. Reassess the exact API before accepting any of these names or boundaries.
-
 ### Stage 6D — managed configuration
 
-After 6C acceptance, revalidate the first capability that composes a semantic plan with host authority: optional observation, desired/observed reconciliation, ownership guard, and create/replace/delete application through `FileHost`. Parsing, watching, retries, scheduling, and multi-writer/CAS behaviour remain out unless separately proven.
+Current target: revalidate the first capability that composes a semantic plan with host authority: optional observation, desired/observed reconciliation, ownership guard, and create/replace/delete application through `FileHost`. Parsing, watching, retries, scheduling, and multi-writer/CAS behaviour remain out unless separately proven.
 
 ## Stage 7 target
 
