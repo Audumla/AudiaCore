@@ -5,11 +5,15 @@
 //! not parse configuration, watch files, retry operations, schedule work, or
 //! provide multi-writer/CAS guarantees.
 
-use std::{error::Error, fmt, path::{Path, PathBuf}};
+use std::{
+    error::Error,
+    fmt,
+    path::{Path, PathBuf},
+};
 
 use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
 use audiacore_host::{FileHost, FileReadAuthority, FileWriteAuthority};
-use audiacore_reconcile::{plan as reconcile_presence, OwnerId, ReconcileAction};
+use audiacore_reconcile::{OwnerId, ReconcileAction, plan as reconcile_presence};
 
 const HOST_OPERATION_FAILED: ErrorDefinition = ErrorDefinition::new(
     ErrorCode::new("IO-MCONFIG-001"),
@@ -72,10 +76,7 @@ pub enum ManagedConfigApplyResult {
 #[derive(Debug)]
 pub enum ManagedConfigError<E> {
     Host(E),
-    OwnershipMismatch {
-        expected: OwnerId,
-        actual: OwnerId,
-    },
+    OwnershipMismatch { expected: OwnerId, actual: OwnerId },
 }
 
 impl<E> CodedError for ManagedConfigError<E> {
@@ -197,11 +198,7 @@ mod tests {
             Ok(())
         }
 
-        fn remove(
-            &self,
-            _authority: &FileWriteAuthority,
-            path: &Path,
-        ) -> Result<(), Self::Error> {
+        fn remove(&self, _authority: &FileWriteAuthority, path: &Path) -> Result<(), Self::Error> {
             self.files.lock().unwrap().remove(path);
             Ok(())
         }
@@ -229,11 +226,7 @@ mod tests {
             Err(io::Error::other("write failed"))
         }
 
-        fn remove(
-            &self,
-            _authority: &FileWriteAuthority,
-            _path: &Path,
-        ) -> Result<(), Self::Error> {
+        fn remove(&self, _authority: &FileWriteAuthority, _path: &Path) -> Result<(), Self::Error> {
             Err(io::Error::other("remove failed"))
         }
     }
@@ -292,7 +285,8 @@ mod tests {
     fn unchanged_desired_bytes_produce_noop_without_host_mutation() {
         let host = MemoryFileHost::default();
         let target = target("application-config");
-        host.write(&write_authority(), target.path(), b"same").unwrap();
+        host.write(&write_authority(), target.path(), b"same")
+            .unwrap();
 
         let observed = observe(&host, &read_authority(), &target).unwrap();
         let planned = plan(&target, &observed, &Some(b"same".to_vec()));
@@ -301,7 +295,10 @@ mod tests {
             apply(&host, &write_authority(), &target, &planned).unwrap(),
             ManagedConfigApplyResult::Noop
         );
-        assert_eq!(observe(&host, &read_authority(), &target).unwrap(), observed);
+        assert_eq!(
+            observe(&host, &read_authority(), &target).unwrap(),
+            observed
+        );
     }
 
     #[test]
@@ -314,7 +311,10 @@ mod tests {
         let error = apply(&host, &write_authority(), &destination, &planned).unwrap_err();
 
         assert_eq!(error.code().as_str(), "CON-MCONFIG-001");
-        assert_eq!(observe(&host, &read_authority(), &destination).unwrap(), None);
+        assert_eq!(
+            observe(&host, &read_authority(), &destination).unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -322,10 +322,14 @@ mod tests {
         let target = target("application-config");
         let observe_error = observe(&FailingFileHost, &read_authority(), &target).unwrap_err();
         assert_eq!(observe_error.code().as_str(), "IO-MCONFIG-001");
-        assert_eq!(observe_error.source().unwrap().to_string(), "observe failed");
+        assert_eq!(
+            observe_error.source().unwrap().to_string(),
+            "observe failed"
+        );
 
         let planned = plan(&target, &None, &Some(b"value".to_vec()));
-        let apply_error = apply(&FailingFileHost, &write_authority(), &target, &planned).unwrap_err();
+        let apply_error =
+            apply(&FailingFileHost, &write_authority(), &target, &planned).unwrap_err();
         assert_eq!(apply_error.code().as_str(), "IO-MCONFIG-001");
         assert_eq!(apply_error.source().unwrap().to_string(), "write failed");
     }
