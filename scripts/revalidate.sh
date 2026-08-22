@@ -222,4 +222,28 @@ if [[ -d crates/audiacore-events ]]; then
   echo "EVENT_CAPABILITY_OK"
 fi
 
+if [[ -d crates/audiacore-workflow ]]; then
+  workflow_manifest="crates/audiacore-workflow/Cargo.toml"
+  workflow_src="crates/audiacore-workflow/src/lib.rs"
+  assert_dependencies "$workflow_manifest" "audiacore-errors"
+  assert_no_dev_or_build_dependencies "$workflow_manifest"
+  assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|config|host|host-native)' \
+    "workflow capability contains effects/clock/runtime/upward coupling" crates/audiacore-workflow
+  for symbol in WorkflowInstanceId WorkflowStatus WorkflowDefinition WorkflowTransition WorkflowInstance WorkflowReceipt WorkflowSnapshot WorkflowError; do
+    grep -q "$symbol" "$workflow_src" || fail "workflow capability missing $symbol"
+  done
+  grep -q 'fn decide(' "$workflow_src" || fail "workflow deterministic decision boundary missing"
+  grep -q 'effects: Vec<E>' "$workflow_src" || fail "workflow effects-as-data boundary missing"
+  grep -q 'pub fn apply_at' "$workflow_src" || fail "workflow optimistic revision API missing"
+  ! grep -q 'pub fn apply(' "$workflow_src" || fail "workflow regained redundant implicit-revision apply convenience"
+  grep -q 'pub fn restore' "$workflow_src" || fail "workflow snapshot restoration boundary missing"
+  grep -q 'checked_add(1)' "$workflow_src" || fail "workflow revision must reject exhaustion rather than wrap"
+  ! grep -Eq 'self\.revision[[:space:]]*\+=' "$workflow_src" || fail "workflow revision must use checked monotonic increment"
+  grep -q 'impl CodedError for WorkflowIdError' "$workflow_src" || fail "workflow identity validation lacks stable coded identity"
+  grep -q 'impl<E> CodedError for WorkflowError<E>' "$workflow_src" || fail "workflow transition failures lack stable coded identity"
+  assert_no_match 'pub[[:space:]]+(struct|trait|enum)[[:space:]]+(Workflow(Store|Repository|Persistence|Scheduler|Manager|Registry)|Retry|Backoff|Compensation|TaskExecutor)' \
+    "workflow capability defined an unearned persistence/runtime/manager abstraction" "$workflow_src"
+  echo "WORKFLOW_CAPABILITY_OK"
+fi
+
 echo "AUDIACORE_REVALIDATION_OK"
