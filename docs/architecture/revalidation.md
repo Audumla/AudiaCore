@@ -25,8 +25,9 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | 1 | Core | ACCEPTED |
 | 2 | Stable error contract | ACCEPTED |
 | 3A | Pure deterministic primitives | ACCEPTED |
-| 3B | Configuration | IN PROGRESS |
-| 4 | Host contracts | BLOCKED BY 3B |
+| 3B | Configuration | ACCEPTED |
+| 4A | File host contract + authority | IN PROGRESS |
+| 4B | Process host contract + authority | BLOCKED BY 4A |
 | 5 | Native host | BLOCKED BY 4 |
 | 6 | Application capabilities | BLOCKED BY 5 |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6 |
@@ -103,33 +104,54 @@ Workflow run: `32551016872` (run #52) — Ubuntu/macOS/Windows passed.
 
 Each crate depends only on `audiacore-errors`. None depends on core or owns filesystem/environment/process/network/runtime/telemetry behaviour.
 
-## Stage 3B — configuration
+### Stage 3B — configuration
 
-### Required semantics
+Accepted head: `05031f8f5351381224d1848933ff577426ce98c7`  
+Workflow run: `32552433778` (run #72) — Ubuntu/macOS/Windows passed.
 
-- explicit ordered in-memory TOML layers;
-- deterministic recursive table merge, with later layers replacing non-table values;
-- typed resolved configuration through Serde;
-- deterministic provenance revision over the **exact ordered layer ids and source text**, not semantic equivalence;
-- ordered layer identities retained in the result;
-- stable coded failures for layer identity, parsing and typed resolution;
-- no source discovery, filesystem, environment or remote acquisition;
-- no policy semantics inside the configuration library.
+**Accepted:** explicit ordered in-memory TOML layers, recursive later-layer override, typed Serde resolution, exact-input provenance revision, retained ordered layer identities and stable coded parse/resolution failures.
 
-### Dependency reassessment
+**Dependency reassessment:** the clean-room rebuild rejects Figment. `audiacore-config` uses only `audiacore-errors`, `serde`, and `toml` with the narrow parsing/Serde surface required by the contract. Source discovery, filesystem/environment acquisition and policy semantics remain outside the crate.
 
-The clean-room rebuild rejects the previous Figment dependency for this layer. The required contract does not need a provider framework. Direct `toml` + `serde` provides parsing and typed deserialization while AudiaCore owns the deliberately small ordered-merge/provenance semantics.
+**Additional correction found by revalidation:** derived `Default` would have initialized provenance differently from `ConfigLayers::new()`. `Default` now delegates to `new()` and a regression test locks that invariant.
 
-This also prevents the foundation from acquiring optional provider capabilities such as environment discovery merely because a general configuration framework exposes them.
+## Stage 4 — host contracts + authorities
 
-### Planned dependency boundary
+Stage 4 is split by effect family. A single generic host abstraction is explicitly rejected.
 
-`audiacore-config` may depend on:
+### Stage 4A — file host contract
 
-- `audiacore-errors`;
-- `serde` for the typed deserialization contract;
-- `toml` with only `std`, `parse`, and `serde` features.
+Immediate consumer requirement: managed configuration must be able to observe an optional file, atomically replace desired bytes through a native implementation, and remove a target. The contract should expose only the semantic operations required above the native layer.
 
-It must not depend on core, host, tracing, environment/file providers or policy/capability crates.
+Candidate surface:
 
-Stage 3B is accepted only after the dependency decision, merge semantics, exact-input provenance, typed resolution and no-acquisition gates pass on all three operating systems.
+- `FileReadAuthority { root }`;
+- `FileWriteAuthority { root }`;
+- `FileHost::read_optional`;
+- `FileHost::write`;
+- `FileHost::remove`.
+
+Deliberate exclusions:
+
+- no generic `read` method until a real consumer needs mandatory-read semantics;
+- no lexical `allows(path)` helper because prefix checks cannot prove canonical/symlink-safe containment;
+- no directory/list/watch API;
+- no file-store/service/manager abstraction;
+- no native `std::fs` effects in the contract crate;
+- no config-derived authority and no policy semantics.
+
+Authority values describe grants. The native implementation remains responsible for canonicalization and safe containment enforcement.
+
+### Stage 4B — process host contract
+
+Process execution is a known platform requirement but is revalidated separately because it has stronger lifecycle and secret-handling implications than filesystem operations.
+
+The stage must prove whether the minimum contract still requires:
+
+- explicit allow-listed program authority;
+- secret-safe environment values;
+- owned child lifecycle rather than one-shot `run()`;
+- configurable stdio ownership;
+- synchronous low-level process contracts that do not force an async runtime into the foundation.
+
+Network and secret-provider host contracts remain excluded. Sensitive values may be carried into process requests, but secret retrieval is not itself a host facility until a real consumer proves that boundary.
