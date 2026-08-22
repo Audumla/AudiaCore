@@ -4,21 +4,13 @@
 
 use std::{error::Error, fmt};
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 
-const EMPTY_RESOURCE_ID: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-RECONCILE-001"),
-    "Resource identifier must not be empty.",
-    "Provide a non-empty resource identifier.",
-);
-const EMPTY_OWNER_ID: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-RECONCILE-002"),
-    "Owner identifier must not be empty.",
-    "Provide a non-empty owner identifier.",
-);
+const EMPTY_RESOURCE_ID: ErrorCode = ErrorCode::new("VAL-RECONCILE-001");
+const EMPTY_OWNER_ID: ErrorCode = ErrorCode::new("VAL-RECONCILE-002");
 
 macro_rules! string_id {
-    ($name:ident, $variant:ident, $definition:ident) => {
+    ($name:ident, $variant:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(String);
 
@@ -38,8 +30,8 @@ macro_rules! string_id {
     };
 }
 
-string_id!(ResourceId, EmptyResourceId, EMPTY_RESOURCE_ID);
-string_id!(OwnerId, EmptyOwnerId, EMPTY_OWNER_ID);
+string_id!(ResourceId, EmptyResourceId);
+string_id!(OwnerId, EmptyOwnerId);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReconcileError {
@@ -48,10 +40,10 @@ pub enum ReconcileError {
 }
 
 impl CodedError for ReconcileError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::EmptyResourceId => &EMPTY_RESOURCE_ID,
-            Self::EmptyOwnerId => &EMPTY_OWNER_ID,
+            Self::EmptyResourceId => EMPTY_RESOURCE_ID,
+            Self::EmptyOwnerId => EMPTY_OWNER_ID,
         }
     }
 }
