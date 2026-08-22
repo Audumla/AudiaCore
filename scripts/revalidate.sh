@@ -128,8 +128,6 @@ if [[ -d crates/audiacore-errors ]]; then
   echo "ERROR_CONTRACT_OK"
 fi
 
-# Stage 3A: deterministic semantic primitives may depend only on the stable
-# error contract and may not acquire or apply external effects.
 for crate in sensitive template reconcile; do
   crate_dir="crates/audiacore-$crate"
   if [[ -d "$crate_dir" ]]; then
@@ -148,6 +146,36 @@ if [[ -d crates/audiacore-sensitive && -d crates/audiacore-template && -d crates
   grep -q 'pub struct Template' crates/audiacore-template/src/lib.rs || fail "template crate lacks deterministic Template"
   grep -q 'pub enum ReconcileAction<T>' crates/audiacore-reconcile/src/lib.rs || fail "reconcile crate lacks effect-as-data plan"
   echo "PURE_FOUNDATION_PRIMITIVES_OK"
+fi
+
+# Stage 3B: configuration resolves already-acquired text only. The dependency
+# surface is deliberately smaller than a general provider framework.
+if [[ -d crates/audiacore-config ]]; then
+  config_manifest="crates/audiacore-config/Cargo.toml"
+  config_src="crates/audiacore-config/src/lib.rs"
+  config_deps="$(normal_dependencies "$config_manifest")"
+  expected_config_deps="$(printf '%s\n' audiacore-errors serde toml)"
+  [[ "$config_deps" == "$expected_config_deps" ]] || fail "config dependencies must be exactly audiacore-errors, serde, toml"
+
+  grep -Fq 'toml = { version = "1.1.4", default-features = false, features = ["std", "serde", "parse"] }' "$config_manifest" || fail "config must use TOML without provider/display extras"
+  grep -Fq 'serde = { version = "1.0.229", features = ["derive"] }' "$config_manifest" || fail "config tests must isolate Serde derive to dev dependency"
+
+  if grep -R -n -E 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-core|audiacore-host|Policy|from_env|from_file|read_to_string' crates/audiacore-config; then
+    fail "config contains acquisition, effect, policy, runtime, or upward-layer semantics"
+  fi
+
+  grep -q 'pub struct ConfigLayerId' "$config_src" || fail "config lacks typed layer identity"
+  grep -q 'pub struct ConfigRevision' "$config_src" || fail "config lacks provenance revision"
+  grep -q 'pub struct ResolvedConfig<T>' "$config_src" || fail "config lacks provenance-carrying resolved value"
+  grep -q 'pub struct ConfigLayers' "$config_src" || fail "config lacks explicit ordered layer composition"
+  grep -q 'pub fn merge_toml' "$config_src" || fail "config lacks explicit in-memory TOML merge"
+  grep -q 'impl CodedError for ConfigError' "$config_src" || fail "config failures lack stable coded identity"
+
+  if grep -q 'into_value' "$config_src"; then
+    fail "config must not provide a convenience API that silently discards provenance"
+  fi
+
+  echo "CONFIG_FOUNDATION_OK"
 fi
 
 echo "AUDIACORE_REVALIDATION_OK"
