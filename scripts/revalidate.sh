@@ -9,6 +9,26 @@ fail() {
   exit 1
 }
 
+normal_dependencies() {
+  awk '
+    /^\[dependencies\]$/ { in_deps=1; next }
+    /^\[/ { in_deps=0 }
+    in_deps && /^[A-Za-z0-9_-]+[[:space:]]*=/ {
+      key=$1; sub(/[[:space:]]*=.*$/, "", key); print key
+    }
+  ' "$1"
+}
+
+assert_only_dependency() {
+  manifest="$1"
+  expected="$2"
+  deps="$(normal_dependencies "$manifest")"
+  [[ "$deps" == "$expected" ]] || fail "$manifest normal dependencies must be exactly: $expected (found: ${deps:-none})"
+  if grep -Eq '^\[(dev-dependencies|build-dependencies)\]$' "$manifest"; then
+    fail "$manifest must not add dev/build dependencies at this layer"
+  fi
+}
+
 required_root=(
   .gitignore
   LICENSE
@@ -76,8 +96,6 @@ if [[ -d crates/audiacore-core ]]; then
   echo "CORE_LAYER_OK"
 fi
 
-# Stage 2: stable error identity is a zero-dependency foundation contract, not
-# a registry/runtime. Codes must be globally unique at their definition sites.
 if [[ -d crates/audiacore-errors ]]; then
   errors_manifest="crates/audiacore-errors/Cargo.toml"
   errors_src="crates/audiacore-errors/src"
@@ -108,6 +126,28 @@ if [[ -d crates/audiacore-errors ]]; then
   fi
 
   echo "ERROR_CONTRACT_OK"
+fi
+
+# Stage 3A: deterministic semantic primitives may depend only on the stable
+# error contract and may not acquire or apply external effects.
+for crate in sensitive template reconcile; do
+  crate_dir="crates/audiacore-$crate"
+  if [[ -d "$crate_dir" ]]; then
+    assert_only_dependency "$crate_dir/Cargo.toml" "audiacore-errors"
+
+    if grep -R -n -E 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-core|audiacore-host' "$crate_dir"; then
+      fail "$crate must remain a pure foundation semantic crate"
+    fi
+
+    grep -q 'impl CodedError for' "$crate_dir/src/lib.rs" || fail "$crate public semantic failures must have stable coded identity"
+  fi
+done
+
+if [[ -d crates/audiacore-sensitive && -d crates/audiacore-template && -d crates/audiacore-reconcile ]]; then
+  grep -q 'pub struct Sensitive<T>' crates/audiacore-sensitive/src/lib.rs || fail "sensitive crate lacks explicit Sensitive<T> wrapper"
+  grep -q 'pub struct Template' crates/audiacore-template/src/lib.rs || fail "template crate lacks deterministic Template"
+  grep -q 'pub enum ReconcileAction<T>' crates/audiacore-reconcile/src/lib.rs || fail "reconcile crate lacks effect-as-data plan"
+  echo "PURE_FOUNDATION_PRIMITIVES_OK"
 fi
 
 echo "AUDIACORE_REVALIDATION_OK"
