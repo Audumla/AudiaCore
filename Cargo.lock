@@ -20,6 +20,14 @@ name = "audiacore-errors"
 version = "0.1.0"
 
 [[package]]
+name = "audiacore-events"
+version = "0.1.0"
+dependencies = [
+ "audiacore-core",
+ "audiacore-errors",
+]
+
+[[package]]
 name = "audiacore-host"
 version = "0.1.0"
 dependencies = [
