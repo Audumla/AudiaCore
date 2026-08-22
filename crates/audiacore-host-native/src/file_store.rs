@@ -91,8 +91,8 @@ pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
                 format!("path has no parent: {path:?}"),
             )
         })?;
-        let directory =
-            File::open(parent).map_err(|source| io_error("open parent directory", parent, source))?;
+        let directory = File::open(parent)
+            .map_err(|source| io_error("open parent directory", parent, source))?;
         directory
             .sync_all()
             .map_err(|source| io_error("sync parent directory", parent, source))?;
