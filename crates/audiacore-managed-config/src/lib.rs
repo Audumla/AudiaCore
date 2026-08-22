@@ -4,7 +4,7 @@
 //! pure reconciliation layer, and applies one resulting whole-file effect. It
 //! does not parse configuration, manage partial content, prove ownership of
 //! pre-existing files, watch files, retry operations, schedule work, or provide
-//! multi-writer/CAS guarantees.
+//! multi-writer concurrency guarantees.
 //!
 //! `desired = None` means deletion of the entire target file. Callers must only
 //! use this capability where whole-file lifecycle responsibility has already
