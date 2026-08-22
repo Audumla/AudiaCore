@@ -19,42 +19,18 @@ pub struct NativeFileHost;
 
 #[derive(Debug)]
 pub enum NativeHostError {
-    CanonicalizeAuthorityRoot {
-        path: PathBuf,
-        source: io::Error,
-    },
+    CanonicalizeAuthorityRoot { path: PathBuf, source: io::Error },
     AuthorityRootNotDirectory(PathBuf),
-    InspectTarget {
-        path: PathBuf,
-        source: io::Error,
-    },
-    CanonicalizeTarget {
-        path: PathBuf,
-        source: io::Error,
-    },
-    CanonicalizeParent {
-        path: PathBuf,
-        source: io::Error,
-    },
-    OutsideAuthority {
-        root: PathBuf,
-        path: PathBuf,
-    },
+    InspectTarget { path: PathBuf, source: io::Error },
+    CanonicalizeTarget { path: PathBuf, source: io::Error },
+    CanonicalizeParent { path: PathBuf, source: io::Error },
+    OutsideAuthority { root: PathBuf, path: PathBuf },
     MissingFileName(PathBuf),
     SymbolicLinkWriteTarget(PathBuf),
     DirectoryWriteTarget(PathBuf),
-    ReadFile {
-        path: PathBuf,
-        source: io::Error,
-    },
-    WriteFile {
-        path: PathBuf,
-        source: io::Error,
-    },
-    RemoveFile {
-        path: PathBuf,
-        source: io::Error,
-    },
+    ReadFile { path: PathBuf, source: io::Error },
+    WriteFile { path: PathBuf, source: io::Error },
+    RemoveFile { path: PathBuf, source: io::Error },
 }
 
 impl fmt::Display for NativeHostError {
@@ -110,10 +86,11 @@ impl Error for NativeHostError {
 }
 
 fn canonical_authority_root(root: &Path) -> Result<PathBuf, NativeHostError> {
-    let canonical = fs::canonicalize(root).map_err(|source| NativeHostError::CanonicalizeAuthorityRoot {
-        path: root.to_path_buf(),
-        source,
-    })?;
+    let canonical =
+        fs::canonicalize(root).map_err(|source| NativeHostError::CanonicalizeAuthorityRoot {
+            path: root.to_path_buf(),
+            source,
+        })?;
     if !canonical.is_dir() {
         return Err(NativeHostError::AuthorityRootNotDirectory(canonical));
     }
@@ -161,12 +138,11 @@ fn authorize_optional_read(
             let parent = requested
                 .parent()
                 .ok_or_else(|| NativeHostError::MissingFileName(requested.clone()))?;
-            let canonical_parent = fs::canonicalize(parent).map_err(|source| {
-                NativeHostError::CanonicalizeParent {
+            let canonical_parent =
+                fs::canonicalize(parent).map_err(|source| NativeHostError::CanonicalizeParent {
                     path: parent.to_path_buf(),
                     source,
-                }
-            })?;
+                })?;
             ensure_inside(&root, &canonical_parent)?;
             Ok(None)
         }
@@ -189,12 +165,11 @@ fn authorize_write(
     let parent = requested
         .parent()
         .ok_or_else(|| NativeHostError::MissingFileName(requested.clone()))?;
-    let canonical_parent = fs::canonicalize(parent).map_err(|source| {
-        NativeHostError::CanonicalizeParent {
+    let canonical_parent =
+        fs::canonicalize(parent).map_err(|source| NativeHostError::CanonicalizeParent {
             path: parent.to_path_buf(),
             source,
-        }
-    })?;
+        })?;
     ensure_inside(&root, &canonical_parent)?;
 
     let target = canonical_parent.join(file_name);
