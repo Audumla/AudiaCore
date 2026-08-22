@@ -7,7 +7,7 @@
 use std::{error::Error, fmt};
 
 use audiacore_errors::{CodedError, ErrorCode};
-use serde_json::{Map, Value};
+pub use serde_json::{Map as TemplateContext, Value as TemplateValue};
 
 const EMPTY_SLOT: ErrorCode = ErrorCode::new("VAL-TEMPLATE-001");
 const UNCLOSED_SLOT: ErrorCode = ErrorCode::new("VAL-TEMPLATE-002");
@@ -59,7 +59,7 @@ impl Template {
         self.parts.iter().any(|part| matches!(part, Part::Slot(_)))
     }
 
-    pub fn render(&self, context: &Map<String, Value>) -> Result<String, TemplateError> {
+    pub fn render(&self, context: &TemplateContext<String, TemplateValue>) -> Result<String, TemplateError> {
         let mut rendered = String::new();
         for part in &self.parts {
             match part {
@@ -75,14 +75,17 @@ impl Template {
     }
 }
 
-fn resolve_path<'a>(context: &'a Map<String, Value>, path: &str) -> Option<&'a Value> {
+fn resolve_path<'a>(
+    context: &'a TemplateContext<String, TemplateValue>,
+    path: &str,
+) -> Option<&'a TemplateValue> {
     let mut segments = path.split('.');
     let first = segments.next()?;
     let mut current = context.get(first)?;
 
     for segment in segments {
         current = match current {
-            Value::Object(mapping) => mapping.get(segment)?,
+            TemplateValue::Object(mapping) => mapping.get(segment)?,
             _ => return None,
         };
     }
@@ -90,13 +93,14 @@ fn resolve_path<'a>(context: &'a Map<String, Value>, path: &str) -> Option<&'a V
     Some(current)
 }
 
-fn render_value(value: &Value, rendered: &mut String) {
+fn render_value(value: &TemplateValue, rendered: &mut String) {
     match value {
-        Value::Null => {}
-        Value::String(value) => rendered.push_str(value),
-        Value::Bool(_) | Value::Number(_) | Value::Array(_) | Value::Object(_) => {
-            rendered.push_str(&value.to_string());
-        }
+        TemplateValue::Null => {}
+        TemplateValue::String(value) => rendered.push_str(value),
+        TemplateValue::Bool(_)
+        | TemplateValue::Number(_)
+        | TemplateValue::Array(_)
+        | TemplateValue::Object(_) => rendered.push_str(&value.to_string()),
     }
 }
 
@@ -134,7 +138,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn context(value: Value) -> Map<String, Value> {
+    fn context(value: TemplateValue) -> TemplateContext<String, TemplateValue> {
         value.as_object().unwrap().clone()
     }
 
@@ -184,7 +188,7 @@ mod tests {
         );
 
         let template = Template::parse("{profile.name}").unwrap();
-        let error = template.render(&Map::new()).unwrap_err();
+        let error = template.render(&TemplateContext::new()).unwrap_err();
         assert_eq!(error, TemplateError::MissingValue("profile.name".to_owned()));
         assert_eq!(error.code().as_str(), "RES-TEMPLATE-001");
     }
