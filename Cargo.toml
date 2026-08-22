@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/audiacore-core",
+    "crates/audiacore-errors",
 ]
 resolver = "3"
 
