@@ -1,9 +1,10 @@
 //! Typed application-edge composition proof.
 //!
 //! This crate proves direct composition of an application identity, explicit
-//! policy, explicit host authorities, configured error presentation, and
-//! structured tracing. It is deliberately not a service locator, registry,
-//! runtime container, configuration source, or global observability service.
+//! capability requests, explicit host authorities, configured error
+//! presentation, and structured tracing. It is deliberately not a service
+//! locator, registry, runtime container, configuration source, application
+//! policy model, or global observability service.
 
 use audiacore_core::{Application, ExecutionContext};
 use audiacore_error_catalog::ErrorCatalogue;
@@ -17,18 +18,19 @@ use audiacore_template::{TemplateContext, TemplateValue};
 
 const REDACTED: &str = "[REDACTED]";
 
-/// Behaviour policy for one managed-configuration target.
+/// Desired input to the Stage 7 managed whole-file capability proof.
 ///
-/// This type is source-independent: callers may construct it from resolved
-/// configuration, command-line input, tests, or any other application source.
-/// It carries no file authority and therefore cannot grant effects.
+/// This is a capability request, not application policy and not a
+/// configuration object. An application may derive it from validated policy,
+/// command-line input, tests, or another source. It carries no file authority
+/// and therefore cannot grant effects.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManagedConfigPolicy {
+pub struct ManagedConfigRequest {
     target: ManagedConfigTarget,
     desired: Option<Vec<u8>>,
 }
 
-impl ManagedConfigPolicy {
+impl ManagedConfigRequest {
     pub fn new(target: ManagedConfigTarget, desired: Option<Vec<u8>>) -> Self {
         Self { target, desired }
     }
@@ -42,10 +44,11 @@ impl ManagedConfigPolicy {
     }
 }
 
-/// Concrete, typed composition used by the Stage 7 proof.
+/// Concrete, typed composition used only by the Stage 7 proving consumer.
 ///
 /// The host implementation, authorities, and error catalogue are caller-owned
-/// values. No ambient/global lookup is performed.
+/// values. No ambient/global lookup is performed. This is not the canonical
+/// shape of future applications and must not accumulate unrelated capabilities.
 pub struct ManagedConfigComposition<H> {
     host: H,
     read_authority: FileReadAuthority,
@@ -169,11 +172,12 @@ pub fn present_error<E: CodedError>(
             resolution: rendered.resolution().to_owned(),
             configured: true,
         },
-        Err(presentation_error) => {
+        Err(_) => {
             tracing::warn!(
+                outcome = "degraded",
+                reason = "configured_presentation_failed",
                 error_code = code.as_str(),
-                presentation_error = %presentation_error,
-                "configured error presentation failed"
+                "degraded"
             );
             PresentedError {
                 code,
@@ -187,15 +191,24 @@ pub fn present_error<E: CodedError>(
     }
 }
 
-/// Execute the managed-configuration proof through explicit policy and authority.
+fn managed_config_result(result: ManagedConfigApplyResult) -> &'static str {
+    match result {
+        ManagedConfigApplyResult::Noop => "noop",
+        ManagedConfigApplyResult::Created => "created",
+        ManagedConfigApplyResult::Replaced => "replaced",
+        ManagedConfigApplyResult::Deleted => "deleted",
+    }
+}
+
+/// Execute the managed whole-file proof through an explicit request and
+/// independently supplied authority.
 ///
-/// Structured tracing is emitted only here, at the application edge. The
-/// lower managed-config, host, reconciliation, and core crates remain tracing
-/// free.
+/// Structured tracing is emitted only here, at the application edge. The lower
+/// managed-config, host, reconciliation, and core crates remain tracing free.
 pub fn execute_managed_config<H: FileHost>(
     application: &Application<ManagedConfigComposition<H>>,
     execution: &ExecutionContext,
-    policy: &ManagedConfigPolicy,
+    request: &ManagedConfigRequest,
 ) -> Result<ManagedConfigApplyResult, ManagedConfigError<H::Error>> {
     let composition = application.composition();
     let span = tracing::info_span!(
@@ -209,34 +222,42 @@ pub fn execute_managed_config<H: FileHost>(
     let observed = match observe(
         composition.host(),
         composition.read_authority(),
-        policy.target(),
+        request.target(),
     ) {
         Ok(observed) => observed,
         Err(error) => {
             tracing::error!(
+                outcome = "failure",
+                phase = "observe",
                 error_code = error.code().as_str(),
-                "managed configuration observation failed"
+                "failed"
             );
             return Err(error);
         }
     };
 
-    let desired = policy.desired().map(<[u8]>::to_vec);
-    let planned = plan(policy.target(), &observed, &desired);
+    let desired = request.desired().map(<[u8]>::to_vec);
+    let planned = plan(request.target(), &observed, &desired);
     match apply(
         composition.host(),
         composition.write_authority(),
-        policy.target(),
+        request.target(),
         &planned,
     ) {
         Ok(result) => {
-            tracing::info!(result = ?result, "managed configuration applied");
+            tracing::info!(
+                outcome = "success",
+                result = managed_config_result(result),
+                "completed"
+            );
             Ok(result)
         }
         Err(error) => {
             tracing::error!(
+                outcome = "failure",
+                phase = "apply",
                 error_code = error.code().as_str(),
-                "managed configuration apply failed"
+                "failed"
             );
             Err(error)
         }
@@ -265,15 +286,15 @@ mod tests {
                 r#"
 CON-MCONFIG-001:
   kind: constraint
-  message: "Owner {owner} used token {token}."
-  resolution: "Correct the ownership identity."
+  message: "Target {target} used token {token}."
+  resolution: "Correct the target."
 "#,
             )
             .unwrap();
 
         let secret = Sensitive::new("never-show-this".to_owned());
         let mut context = MessageContext::new();
-        context.insert_public("owner", TemplateValue::String("app".to_owned()));
+        context.insert_public("target", TemplateValue::String("app.conf".to_owned()));
         context.insert_sensitive("token", &secret);
 
         let presented = present_error(
@@ -283,7 +304,10 @@ CON-MCONFIG-001:
         );
 
         assert!(presented.configured());
-        assert_eq!(presented.message(), "Owner app used token [REDACTED].");
+        assert_eq!(
+            presented.message(),
+            "Target app.conf used token [REDACTED]."
+        );
         assert!(!presented.message().contains(secret.expose()));
     }
 
@@ -309,8 +333,8 @@ CON-MCONFIG-001:
                 r#"
 CON-MCONFIG-001:
   kind: constraint
-  message: "Owner {owner} is invalid."
-  resolution: "Correct the owner."
+  message: "Target {target} is invalid."
+  resolution: "Correct the target."
 "#,
             )
             .unwrap();

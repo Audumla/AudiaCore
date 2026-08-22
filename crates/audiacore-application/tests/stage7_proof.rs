@@ -9,7 +9,7 @@ use std::{
 };
 
 use audiacore_application::{
-    ManagedConfigComposition, ManagedConfigPolicy, MessageContext, execute_managed_config,
+    ManagedConfigComposition, ManagedConfigRequest, MessageContext, execute_managed_config,
     present_error,
 };
 use audiacore_config::{ConfigLayerId, ConfigLayers};
@@ -82,7 +82,7 @@ fn execution_context() -> ExecutionContext {
 }
 
 #[test]
-fn resolved_config_builds_source_independent_policy_and_native_effect_is_observable() {
+fn resolved_config_builds_source_independent_request_and_native_effect_is_observable() {
     let root = TempRoot::new();
     let resolved = ConfigLayers::new()
         .merge_toml(
@@ -100,12 +100,12 @@ desired = "configured-value"
 
     let owner = OwnerId::new(resolved.value().managed.owner.clone()).unwrap();
     let target = ManagedConfigTarget::new(resolved.value().managed.path.clone(), owner.clone());
-    let policy_from_config = ManagedConfigPolicy::new(
+    let request_from_config = ManagedConfigRequest::new(
         target.clone(),
         Some(resolved.value().managed.desired.as_bytes().to_vec()),
     );
-    let direct_policy = ManagedConfigPolicy::new(target, Some(b"configured-value".to_vec()));
-    assert_eq!(policy_from_config, direct_policy);
+    let direct_request = ManagedConfigRequest::new(target, Some(b"configured-value".to_vec()));
+    assert_eq!(request_from_config, direct_request);
 
     let read_authority = FileReadAuthority::new(root.path().clone()).unwrap();
     let write_authority = FileWriteAuthority::new(root.path().clone()).unwrap();
@@ -133,7 +133,7 @@ desired = "configured-value"
         .finish();
 
     let result = tracing::subscriber::with_default(subscriber, || {
-        execute_managed_config(&application, &execution, &policy_from_config)
+        execute_managed_config(&application, &execution, &request_from_config)
     })
     .unwrap();
 
@@ -148,14 +148,16 @@ desired = "configured-value"
     assert!(log.contains("application_id=stage7-app"));
     assert!(log.contains("execution_id=execution-7"));
     assert!(log.contains("correlation_id=correlation-7"));
-    assert!(log.contains("result=Created"));
+    assert!(log.contains("outcome=\"success\"") || log.contains("outcome=success"));
+    assert!(log.contains("result=\"created\"") || log.contains("result=created"));
+    assert!(log.contains("completed"));
 
     let outside_target = ManagedConfigTarget::new(
         PathBuf::from("..").join("outside.conf"),
         OwnerId::new("stage7-owner").unwrap(),
     );
-    let outside_policy = ManagedConfigPolicy::new(outside_target, Some(b"denied".to_vec()));
-    let error = execute_managed_config(&application, &execution, &outside_policy).unwrap_err();
+    let outside_request = ManagedConfigRequest::new(outside_target, Some(b"denied".to_vec()));
+    let error = execute_managed_config(&application, &execution, &outside_request).unwrap_err();
     assert_eq!(error.code().as_str(), "IO-MCONFIG-001");
 
     let presented = present_error(
