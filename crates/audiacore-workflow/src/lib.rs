@@ -186,7 +186,9 @@ impl<E: fmt::Display> fmt::Display for WorkflowError<E> {
                 f,
                 "workflow revision conflict: expected {expected}, actual {actual}"
             ),
-            Self::Definition(error) => write!(f, "workflow definition rejected transition: {error}"),
+            Self::Definition(error) => {
+                write!(f, "workflow definition rejected transition: {error}")
+            }
             Self::RevisionExhausted => f.write_str("workflow revision space is exhausted"),
         }
     }
@@ -289,9 +291,7 @@ impl<S> WorkflowInstance<S> {
             WorkflowTransition::Complete { state, effects } => {
                 (state, WorkflowStatus::Completed, effects)
             }
-            WorkflowTransition::Fail { state, effects } => {
-                (state, WorkflowStatus::Failed, effects)
-            }
+            WorkflowTransition::Fail { state, effects } => (state, WorkflowStatus::Failed, effects),
         };
 
         self.state = state;
@@ -440,9 +440,7 @@ mod tests {
         assert_eq!(definition.calls(), 0);
         assert_eq!(workflow.revision(), 0);
 
-        workflow
-            .apply_at(&definition, 0, &Event::Complete)
-            .unwrap();
+        workflow.apply_at(&definition, 0, &Event::Complete).unwrap();
         let calls = definition.calls();
         let terminal = workflow.apply_at(&definition, 1, &Event::Step).unwrap_err();
         assert_eq!(terminal.code().as_str(), "CON-WORKFLOW-001");
