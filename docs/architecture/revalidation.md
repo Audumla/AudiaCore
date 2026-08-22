@@ -62,8 +62,8 @@ The clean-room rebuild may simplify this structure whenever a proposed boundary 
 | 5A | Native file effects + containment | ACCEPTED |
 | 5B | Native process effects + lifecycle | ACCEPTED |
 | 6A | Events capability | ACCEPTED |
-| 6B | Workflow capability | IN PROGRESS |
-| 6C | Time capability | BLOCKED BY 6B |
+| 6B | Workflow capability | ACCEPTED |
+| 6C | Time capability | IN PROGRESS |
 | 6D | Managed-config capability | BLOCKED BY 6C |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6D |
 | 8 | Full layer-lock audit | BLOCKED BY 7 |
@@ -167,40 +167,45 @@ Clean-room reductions:
 
 No event bus, broker, publisher/subscriber registry, queue, transport, retry engine, persistence, durable replay, scheduler, tracing, config, host, or native-effect dependency was introduced.
 
+### Stage 6B — workflow
+
+Accepted head: `8964a27ba4b7a78d047249dc10ede482cc37a561`  
+Workflow run: `32555734185` (#198) — Ubuntu/macOS/Windows passed.
+
+Accepted validated workflow identity; workflow-local `Running` / `Completed` / `Failed` status; domain-owned transition decisions; effects represented only as ordered data; explicit optimistic expected revision; checked monotonic revision; terminal/revision/exhaustion rejection before domain logic; stable coded boundary failures; receipts; and owned snapshots containing instance identity, revision, status, and state.
+
+Clean-room decisions:
+
+- the implicit-current-revision `apply(...)` convenience was removed; transitions use the explicit `apply_at(...)` boundary;
+- `WorkflowSnapshot` remains because state/revision/status form one consistency checkpoint, and `WorkflowInstance::restore(...)` proves deterministic restoration without introducing serialization or persistence ownership;
+- workflow identity validation keeps its small non-generic `WorkflowIdError`, while transition-time failures use `WorkflowError<E>` so domain error context remains typed without forcing an irrelevant generic parameter into identity construction;
+- state mutation occurs only after the revision checks and a successful domain decision, so a rejected decision leaves the workflow instance unchanged.
+
+No core/events/config/host/native dependency, clock, scheduler, retry/backoff, async runtime, task executor, compensation engine, persistence/repository abstraction, workflow manager, or registry was introduced.
+
 ## Stage 6 — application capabilities
 
 Capabilities are revalidated independently. They may use lower semantic contracts but may not acquire configuration, perform unmediated native I/O, own global runtime infrastructure, or turn policy into authority.
 
-### Stage 6B — workflow
-
-Required semantics:
-
-- validated workflow instance identity;
-- workflow-local status (`Running`, `Completed`, `Failed`) rather than a generic lifecycle abstraction in core;
-- domain-owned deterministic transition decisions through a definition trait;
-- effects emitted as data only;
-- monotonic revision assigned by the workflow instance;
-- optimistic revision check before domain logic;
-- terminal-state rejection before domain logic;
-- revision exhaustion check before domain logic and before state mutation;
-- receipt carrying the new revision, status, and effects;
-- an owned snapshot carrying id, revision, status, and cloned state so an application may persist/recover it without this capability owning storage.
-
-Why snapshot semantics earn their place: workflow state/revision/status form one consistency boundary. An owned snapshot is the neutral checkpoint value an application can persist, serialize, compare, or transfer later without exposing storage or serialization concerns to the workflow capability.
-
-Planned dependency boundary: `audiacore-workflow` depends only on `audiacore-errors`. It does not depend on core, events, config, host, native host, time, tracing, or a runtime.
-
-Deliberate exclusions:
-
-- no generic lifecycle framework;
-- no event publication or dependency on `audiacore-events`;
-- no persistence/store/repository abstraction;
-- no scheduler, retry/backoff, clock, timer, async runtime, task execution, compensation engine, or global workflow registry;
-- no provider/session/application semantics.
-
 ### Stage 6C — time
 
-After 6B acceptance, revalidate caller-supplied timestamp/deadline semantics first and require the timer collection to justify itself independently; no clock, sleep, scheduler, task, or runtime ownership is assumed.
+Current target: revalidate caller-supplied timestamp/deadline semantics first and require the timer collection to justify itself independently; no clock, sleep, scheduler, task, or runtime ownership is assumed.
+
+Likely requirements evidence from the prior foundation:
+
+- `Timestamp`;
+- `Deadline`;
+- `TimerId`;
+- caller-owned deterministic `TimerSet`;
+- caller supplies current time explicitly;
+- deterministic due ordering;
+- no clock ownership;
+- no sleeping;
+- no scheduler;
+- no async runtime;
+- no global timers.
+
+The old dependency evidence was only the stable error contract. Reassess the exact API before accepting any of these names or boundaries.
 
 ### Stage 6D — managed configuration
 
