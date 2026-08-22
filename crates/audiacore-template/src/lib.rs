@@ -1,24 +1,17 @@
-//! Tiny deterministic named-slot templating with no I/O or runtime ownership.
+//! Deterministic dotted-path templating over explicitly supplied mappings.
+//!
+//! Templates resolve `{dotted.path}` placeholders only through nested JSON
+//! object mappings supplied by the caller. They never traverse Rust objects,
+//! invoke methods, read ambient state, or perform I/O.
 
-use std::{collections::BTreeMap, error::Error, fmt};
+use std::{error::Error, fmt};
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
+use serde_json::{Map, Value};
 
-const EMPTY_SLOT: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-TEMPLATE-001"),
-    "Template slot must not be empty.",
-    "Give every template slot a non-empty name.",
-);
-const UNCLOSED_SLOT: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-TEMPLATE-002"),
-    "Template slot is not closed.",
-    "Close every '{{' template slot with '}}'.",
-);
-const MISSING_VALUE: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("RES-TEMPLATE-001"),
-    "Template value is missing.",
-    "Provide a value for every named slot before rendering.",
-);
+const EMPTY_SLOT: ErrorCode = ErrorCode::new("VAL-TEMPLATE-001");
+const UNCLOSED_SLOT: ErrorCode = ErrorCode::new("VAL-TEMPLATE-002");
+const MISSING_VALUE: ErrorCode = ErrorCode::new("RES-TEMPLATE-001");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Part {
@@ -36,22 +29,23 @@ impl Template {
         let mut parts = Vec::new();
         let mut cursor = 0;
 
-        while let Some(relative_start) = source[cursor..].find("{{") {
+        while let Some(relative_start) = source[cursor..].find('{') {
             let start = cursor + relative_start;
             if start > cursor {
                 parts.push(Part::Literal(source[cursor..start].to_owned()));
             }
-            let slot_start = start + 2;
+
+            let slot_start = start + 1;
             let relative_end = source[slot_start..]
-                .find("}}")
+                .find('}')
                 .ok_or(TemplateError::UnclosedSlot)?;
             let end = slot_start + relative_end;
-            let name = source[slot_start..end].trim();
-            if name.is_empty() {
+            let path = source[slot_start..end].trim();
+            if path.is_empty() {
                 return Err(TemplateError::EmptySlot);
             }
-            parts.push(Part::Slot(name.to_owned()));
-            cursor = end + 2;
+            parts.push(Part::Slot(path.to_owned()));
+            cursor = end + 1;
         }
 
         if cursor < source.len() {
@@ -61,19 +55,48 @@ impl Template {
         Ok(Self { parts })
     }
 
-    pub fn render(&self, values: &BTreeMap<String, String>) -> Result<String, TemplateError> {
+    pub fn has_placeholders(&self) -> bool {
+        self.parts.iter().any(|part| matches!(part, Part::Slot(_)))
+    }
+
+    pub fn render(&self, context: &Map<String, Value>) -> Result<String, TemplateError> {
         let mut rendered = String::new();
         for part in &self.parts {
             match part {
                 Part::Literal(value) => rendered.push_str(value),
-                Part::Slot(name) => rendered.push_str(
-                    values
-                        .get(name)
-                        .ok_or_else(|| TemplateError::MissingValue(name.clone()))?,
-                ),
+                Part::Slot(path) => {
+                    let value = resolve_path(context, path)
+                        .ok_or_else(|| TemplateError::MissingValue(path.clone()))?;
+                    render_value(value, &mut rendered);
+                }
             }
         }
         Ok(rendered)
+    }
+}
+
+fn resolve_path<'a>(context: &'a Map<String, Value>, path: &str) -> Option<&'a Value> {
+    let mut segments = path.split('.');
+    let first = segments.next()?;
+    let mut current = context.get(first)?;
+
+    for segment in segments {
+        current = match current {
+            Value::Object(mapping) => mapping.get(segment)?,
+            _ => return None,
+        };
+    }
+
+    Some(current)
+}
+
+fn render_value(value: &Value, rendered: &mut String) {
+    match value {
+        Value::Null => {}
+        Value::String(value) => rendered.push_str(value),
+        Value::Bool(_) | Value::Number(_) | Value::Array(_) | Value::Object(_) => {
+            rendered.push_str(&value.to_string());
+        }
     }
 }
 
@@ -85,11 +108,11 @@ pub enum TemplateError {
 }
 
 impl CodedError for TemplateError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::EmptySlot => &EMPTY_SLOT,
-            Self::UnclosedSlot => &UNCLOSED_SLOT,
-            Self::MissingValue(_) => &MISSING_VALUE,
+            Self::EmptySlot => EMPTY_SLOT,
+            Self::UnclosedSlot => UNCLOSED_SLOT,
+            Self::MissingValue(_) => MISSING_VALUE,
         }
     }
 }
@@ -97,9 +120,9 @@ impl CodedError for TemplateError {
 impl fmt::Display for TemplateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::EmptySlot => f.write_str("template slot must not be empty"),
-            Self::UnclosedSlot => f.write_str("template slot is not closed"),
-            Self::MissingValue(name) => write!(f, "missing template value: {name}"),
+            Self::EmptySlot => f.write_str("template path must not be empty"),
+            Self::UnclosedSlot => f.write_str("template placeholder is not closed"),
+            Self::MissingValue(path) => write!(f, "missing template value: {path}"),
         }
     }
 }
@@ -109,32 +132,71 @@ impl Error for TemplateError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
-    #[test]
-    fn renders_named_values() {
-        let template = Template::parse("hello {{ name }}").unwrap();
-        let values = BTreeMap::from([("name".to_owned(), "world".to_owned())]);
-        assert_eq!(template.render(&values).unwrap(), "hello world");
+    fn context(value: Value) -> Map<String, Value> {
+        value.as_object().unwrap().clone()
     }
 
     #[test]
-    fn parse_failures_have_distinct_stable_codes() {
+    fn renders_established_single_brace_dotted_mapping_paths() {
+        let template = Template::parse(
+            "Provider {provider.name} resumed {session.provider-session-id}.",
+        )
+        .unwrap();
+        let values = context(json!({
+            "provider": {"name": "local"},
+            "session": {"provider-session-id": "abc-123"}
+        }));
+
         assert_eq!(
-            Template::parse("{{ }}").unwrap_err().code().as_str(),
+            template.render(&values).unwrap(),
+            "Provider local resumed abc-123."
+        );
+    }
+
+    #[test]
+    fn mappings_sequences_scalars_and_null_have_deterministic_text_semantics() {
+        let template = Template::parse("{object}|{list}|{count}|{enabled}|{nothing}").unwrap();
+        let values = context(json!({
+            "object": {"a": 1},
+            "list": [1, 2],
+            "count": 3,
+            "enabled": true,
+            "nothing": null
+        }));
+
+        assert_eq!(
+            template.render(&values).unwrap(),
+            "{\"a\":1}|[1,2]|3|true|"
+        );
+    }
+
+    #[test]
+    fn parser_and_missing_paths_have_distinct_stable_codes() {
+        assert_eq!(
+            Template::parse("{}").unwrap_err().code().as_str(),
             "VAL-TEMPLATE-001"
         );
         assert_eq!(
-            Template::parse("{{ name").unwrap_err().code().as_str(),
+            Template::parse("{name").unwrap_err().code().as_str(),
             "VAL-TEMPLATE-002"
         );
+
+        let template = Template::parse("{profile.name}").unwrap();
+        let error = template.render(&Map::new()).unwrap_err();
+        assert_eq!(error, TemplateError::MissingValue("profile.name".to_owned()));
+        assert_eq!(error.code().as_str(), "RES-TEMPLATE-001");
     }
 
     #[test]
-    fn missing_values_are_typed_and_coded_errors() {
-        let template = Template::parse("{{ name }}").unwrap();
-        let error = template.render(&BTreeMap::new()).unwrap_err();
-        assert_eq!(error, TemplateError::MissingValue("name".to_owned()));
-        assert_eq!(error.code().as_str(), "RES-TEMPLATE-001");
-        assert_eq!(error.canonical_message(), "Template value is missing.");
+    fn non_mapping_intermediate_values_are_not_traversed() {
+        let template = Template::parse("{session.id}").unwrap();
+        let values = context(json!({"session": "opaque-object"}));
+
+        assert_eq!(
+            template.render(&values).unwrap_err(),
+            TemplateError::MissingValue("session.id".to_owned())
+        );
     }
 }
