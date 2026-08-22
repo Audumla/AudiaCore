@@ -2,13 +2,9 @@
 
 use std::{error::Error, fmt};
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 
-const EMPTY_KEY: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-SENSITIVE-001"),
-    "Sensitive key must not be empty.",
-    "Provide a non-empty sensitive key name.",
-);
+const EMPTY_KEY: ErrorCode = ErrorCode::new("VAL-SENSITIVE-001");
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Sensitive<T>(T);
@@ -56,9 +52,9 @@ pub enum SensitiveError {
 }
 
 impl CodedError for SensitiveError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::EmptyKey => &EMPTY_KEY,
+            Self::EmptyKey => EMPTY_KEY,
         }
     }
 }
@@ -110,9 +106,5 @@ mod tests {
     fn key_validation_has_stable_error_identity() {
         let error = SensitiveKey::new(" ").unwrap_err();
         assert_eq!(error.code().as_str(), "VAL-SENSITIVE-001");
-        assert_eq!(
-            error.canonical_message(),
-            "Sensitive key must not be empty."
-        );
     }
 }
