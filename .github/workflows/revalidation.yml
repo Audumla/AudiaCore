@@ -40,6 +40,58 @@ jobs:
         with:
           toolchain: '1.95.0'
           components: rustfmt, clippy
+      - name: Add Stage 6C architecture gates
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/revalidate.sh")
+          text = path.read_text()
+          marker = '\necho "AUDIACORE_REVALIDATION_OK"\n'
+          if 'TIME_CAPABILITY_OK' not in text:
+              block = r'''
+
+          if [[ -d crates/audiacore-time ]]; then
+            time_manifest="crates/audiacore-time/Cargo.toml"
+            time_src="crates/audiacore-time/src/lib.rs"
+            assert_dependencies "$time_manifest" "audiacore-errors"
+            assert_no_dev_or_build_dependencies "$time_manifest"
+            assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|config|host|host-native)' \
+              "time capability contains effects/clock/runtime/upward coupling" crates/audiacore-time
+            for symbol in Timestamp Deadline TimerId TimerSet; do
+              grep -q "$symbol" "$time_src" || fail "time capability missing $symbol"
+            done
+            grep -q 'pub const fn from_millis' "$time_src" || fail "caller-supplied timestamp construction missing"
+            grep -q 'pub const fn is_due' "$time_src" || fail "deadline due semantics missing"
+            grep -q 'pub fn arm' "$time_src" || fail "timer arming missing"
+            grep -q 'pub fn cancel' "$time_src" || fail "timer cancellation missing"
+            grep -q 'pub fn next_deadline' "$time_src" || fail "timer next-deadline observation missing"
+            grep -q 'pub fn drain_due' "$time_src" || fail "deterministic due draining missing"
+            grep -q 'due.sort();' "$time_src" || fail "due timers must have explicit deterministic ordering"
+            grep -q 'impl CodedError for TimerIdError' "$time_src" || fail "timer identity validation lacks stable coded identity"
+            ! grep -q 'pub fn due(' "$time_src" || fail "time regained redundant non-mutating due convenience"
+            assert_no_match 'pub[[:space:]]+(struct|trait|enum)[[:space:]]+(Clock|TimeProvider|TimerManager|TimerRegistry|Scheduler|Task|Sleep|Retry|Backoff)' \
+              "time capability defined an unearned clock/scheduler/runtime abstraction" "$time_src"
+            echo "TIME_CAPABILITY_OK"
+          fi
+          '''
+              if marker not in text:
+                  raise SystemExit("revalidation marker not found")
+              text = text.replace(marker, block + marker)
+              path.write_text(text)
+          PY
+      - name: Generate Stage 6C lockfile
+        shell: bash
+        run: cargo generate-lockfile
+      - name: Upload Stage 6C bootstrap outputs
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-6c-bootstrap
+          path: |
+            Cargo.lock
+            scripts/revalidate.sh
       - name: Revalidate current stage
         shell: bash
         run: bash scripts/revalidate.sh
