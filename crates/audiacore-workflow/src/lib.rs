@@ -7,33 +7,13 @@
 
 use std::{error::Error, fmt};
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 
-const WORKFLOW_ID_EMPTY: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-WORKFLOW-001"),
-    "Workflow instance identifier must not be empty.",
-    "Provide a non-empty workflow instance identifier.",
-);
-const WORKFLOW_TERMINAL: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CON-WORKFLOW-001"),
-    "Workflow instance is already terminal.",
-    "Do not apply further transitions to a completed or failed workflow instance.",
-);
-const WORKFLOW_REVISION_CONFLICT: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CON-WORKFLOW-002"),
-    "Workflow revision does not match the expected revision.",
-    "Reload the latest workflow state and retry the decision against that revision.",
-);
-const WORKFLOW_DEFINITION_REJECTED: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CON-WORKFLOW-003"),
-    "Workflow definition rejected the transition.",
-    "Inspect the domain-specific transition error and correct the requested event or state.",
-);
-const WORKFLOW_REVISION_EXHAUSTED: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("RES-WORKFLOW-001"),
-    "Workflow revision space is exhausted.",
-    "Create a new workflow instance rather than allowing revision identity to wrap.",
-);
+const WORKFLOW_ID_EMPTY: ErrorCode = ErrorCode::new("VAL-WORKFLOW-001");
+const WORKFLOW_TERMINAL: ErrorCode = ErrorCode::new("CON-WORKFLOW-001");
+const WORKFLOW_REVISION_CONFLICT: ErrorCode = ErrorCode::new("CON-WORKFLOW-002");
+const WORKFLOW_DEFINITION_REJECTED: ErrorCode = ErrorCode::new("CON-WORKFLOW-003");
+const WORKFLOW_REVISION_EXHAUSTED: ErrorCode = ErrorCode::new("RES-WORKFLOW-001");
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WorkflowInstanceId(String);
@@ -62,8 +42,8 @@ impl fmt::Display for WorkflowInstanceId {
 pub struct WorkflowIdError;
 
 impl CodedError for WorkflowIdError {
-    fn definition(&self) -> &'static ErrorDefinition {
-        &WORKFLOW_ID_EMPTY
+    fn code(&self) -> ErrorCode {
+        WORKFLOW_ID_EMPTY
     }
 }
 
@@ -168,12 +148,12 @@ pub enum WorkflowError<E> {
 }
 
 impl<E> CodedError for WorkflowError<E> {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::Terminal(_) => &WORKFLOW_TERMINAL,
-            Self::RevisionConflict { .. } => &WORKFLOW_REVISION_CONFLICT,
-            Self::Definition(_) => &WORKFLOW_DEFINITION_REJECTED,
-            Self::RevisionExhausted => &WORKFLOW_REVISION_EXHAUSTED,
+            Self::Terminal(_) => WORKFLOW_TERMINAL,
+            Self::RevisionConflict { .. } => WORKFLOW_REVISION_CONFLICT,
+            Self::Definition(_) => WORKFLOW_DEFINITION_REJECTED,
+            Self::RevisionExhausted => WORKFLOW_REVISION_EXHAUSTED,
         }
     }
 }
