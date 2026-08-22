@@ -21,8 +21,8 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 
 | Stage | Layer / proof | Key question | Status |
 | --- | --- | --- | --- |
-| 0 | Repository + build discipline | Can the repository enforce cleanliness and repeatable cross-platform validation before code exists? | IN PROGRESS |
-| 1 | Core | What semantics are genuinely universal enough to sit at the dependency floor? | BLOCKED BY 0 |
+| 0 | Repository + build discipline | Can the repository enforce cleanliness and repeatable cross-platform validation before code exists? | ACCEPTED |
+| 1 | Core | What semantics are genuinely universal enough to sit at the dependency floor? | READY |
 | 2 | Error contract | What stable failure identity is required without creating a global error framework? | BLOCKED BY 1 |
 | 3 | Pure foundation semantics | Which reusable deterministic concepts earn independent crates? | BLOCKED BY 2 |
 | 4 | Host contracts | Which effects are proven strongly enough to require narrow authority-bearing contracts? | BLOCKED BY 3 |
@@ -62,15 +62,56 @@ core
 - Domain evidence, operational tracing, and ordered execution output are different contracts.
 - No service locator, global registry, generic manager layer, speculative provider framework, or abstraction without a consumer.
 
-## Stage 0 acceptance
+## Stage 0 — repository + build discipline
 
-Stage 0 contains no product crate. It is accepted when:
+### Decision
 
-- the Rust toolchain is pinned;
-- the repository has one canonical instruction surface and one canonical revalidation document;
-- CI runs on Ubuntu, macOS, and Windows;
-- the repository hygiene gate rejects legacy/runtime debris and duplicate provider instruction files;
-- no generated Cargo/build output is committed;
-- all three operating systems pass the same validation script.
+No product crate belongs in Stage 0. The stage exists only to establish a reproducible build environment, one canonical repository instruction surface, one canonical revalidation plan, and one cross-platform validation entry point.
 
-Validation evidence: pending.
+### Deliberately excluded
+
+- `Cargo.toml` / product workspace
+- core/domain types
+- error abstractions
+- application/runtime assumptions
+
+### Acceptance
+
+- Rust 1.95.0 pinned with rustfmt and Clippy.
+- One `AGENTS.md`, one revalidation document, one validation script, one workflow.
+- Hygiene gate rejects legacy Python/Node/runtime debris, machine-local config and duplicate provider instruction files.
+- No generated build output committed.
+- Same validation script passes on Ubuntu, macOS, and Windows.
+
+### Evidence
+
+- Stage implementation head: `def74266e38e69553b3481978a74d9a13ed97f57`
+- Workflow: `audiacore-revalidation` run `32550330851` (run #2)
+- Ubuntu 24.04: passed
+- macOS 15: passed
+- Windows 2025: passed
+
+**Stage 0 accepted.**
+
+## Stage 1 — core hypothesis
+
+Before implementation, the clean-room hypothesis is deliberately narrow:
+
+> Core should contain only semantics that every future application composition needs regardless of capability, provider, host or runtime choice.
+
+Candidate concepts to prove rather than assume:
+
+- validated `ApplicationId`;
+- validated `ExecutionId` and `CorrelationId` because cross-cutting execution identity is required by later errors/events/tracing;
+- opaque `Application<C>` composition container so unrelated application compositions do not widen core.
+
+Explicitly excluded unless this stage produces a real need:
+
+- capability/component identifiers;
+- lifecycle state machines;
+- diagnostics/error codes;
+- policy or authority;
+- service registries/DI;
+- I/O, environment, async runtime, tracing, serialization or provider semantics.
+
+Stage 1 acceptance will require zero normal dependencies, no effect APIs, behavioural tests for identity/composition, and an architecture gate proving forbidden vocabulary/dependencies stay out of core.
