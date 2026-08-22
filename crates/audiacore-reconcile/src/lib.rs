@@ -99,10 +99,7 @@ mod tests {
 
     #[test]
     fn presence_planning_distinguishes_create_replace_and_delete() {
-        assert_eq!(
-            plan(Some(&"new"), None),
-            ReconcileAction::Create("new")
-        );
+        assert_eq!(plan(Some(&"new"), None), ReconcileAction::Create("new"));
         assert_eq!(
             plan(Some(&"new"), Some(&"old")),
             ReconcileAction::Replace("new")
