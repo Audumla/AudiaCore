@@ -219,6 +219,15 @@ impl<S> WorkflowInstance<S> {
         }
     }
 
+    pub fn restore(snapshot: WorkflowSnapshot<S>) -> Self {
+        Self {
+            id: snapshot.id,
+            revision: snapshot.revision,
+            status: snapshot.status,
+            state: snapshot.state,
+        }
+    }
+
     pub fn id(&self) -> &WorkflowInstanceId {
         &self.id
     }
@@ -245,17 +254,6 @@ impl<S> WorkflowInstance<S> {
             status: self.status,
             state: self.state.clone(),
         }
-    }
-
-    pub fn apply<D>(
-        &mut self,
-        definition: &D,
-        event: &D::Event,
-    ) -> Result<WorkflowReceipt<D::Effect>, WorkflowError<D::Error>>
-    where
-        D: WorkflowDefinition<State = S>,
-    {
-        self.apply_at(definition, self.revision, event)
     }
 
     pub fn apply_at<D>(
@@ -380,6 +378,34 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct DomainError;
+
+    impl fmt::Display for DomainError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("transition rejected")
+        }
+    }
+
+    impl Error for DomainError {}
+
+    struct RejectingDefinition;
+
+    impl WorkflowDefinition for RejectingDefinition {
+        type State = State;
+        type Event = Event;
+        type Effect = Effect;
+        type Error = DomainError;
+
+        fn decide(
+            &self,
+            _state: &Self::State,
+            _event: &Self::Event,
+        ) -> Result<WorkflowTransition<Self::State, Self::Effect>, Self::Error> {
+            Err(DomainError)
+        }
+    }
+
     fn instance() -> WorkflowInstance<State> {
         WorkflowInstance::new(
             WorkflowInstanceId::new("workflow-1").unwrap(),
@@ -392,13 +418,13 @@ mod tests {
         let definition = Definition::new();
         let mut workflow = instance();
 
-        let first = workflow.apply(&definition, &Event::Step).unwrap();
+        let first = workflow.apply_at(&definition, 0, &Event::Step).unwrap();
         assert_eq!(first.revision(), 1);
         assert_eq!(first.status(), WorkflowStatus::Running);
         assert_eq!(first.effects(), &[Effect::Progress(1)]);
         assert_eq!(workflow.state(), &State { steps: 1 });
 
-        let completed = workflow.apply(&definition, &Event::Complete).unwrap();
+        let completed = workflow.apply_at(&definition, 1, &Event::Complete).unwrap();
         assert_eq!(completed.revision(), 2);
         assert_eq!(completed.status(), WorkflowStatus::Completed);
         assert_eq!(completed.effects(), &[Effect::Finished]);
@@ -414,9 +440,11 @@ mod tests {
         assert_eq!(definition.calls(), 0);
         assert_eq!(workflow.revision(), 0);
 
-        workflow.apply(&definition, &Event::Complete).unwrap();
+        workflow
+            .apply_at(&definition, 0, &Event::Complete)
+            .unwrap();
         let calls = definition.calls();
-        let terminal = workflow.apply(&definition, &Event::Step).unwrap_err();
+        let terminal = workflow.apply_at(&definition, 1, &Event::Step).unwrap_err();
         assert_eq!(terminal.code().as_str(), "CON-WORKFLOW-001");
         assert_eq!(definition.calls(), calls);
         assert_eq!(workflow.revision(), 1);
@@ -440,19 +468,39 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_is_an_owned_consistency_checkpoint() {
+    fn definition_rejection_has_stable_error_identity_and_does_not_mutate() {
+        let mut workflow = instance();
+        let before = workflow.clone();
+
+        let error = workflow
+            .apply_at(&RejectingDefinition, 0, &Event::Step)
+            .unwrap_err();
+
+        assert_eq!(error.code().as_str(), "CON-WORKFLOW-003");
+        assert_eq!(error.source().unwrap().to_string(), "transition rejected");
+        assert_eq!(workflow, before);
+    }
+
+    #[test]
+    fn snapshot_is_an_owned_restorable_consistency_checkpoint() {
         let definition = Definition::new();
         let mut workflow = instance();
-        workflow.apply(&definition, &Event::Step).unwrap();
+        workflow.apply_at(&definition, 0, &Event::Step).unwrap();
 
         let snapshot = workflow.snapshot();
-        workflow.apply(&definition, &Event::Fail).unwrap();
+        workflow.apply_at(&definition, 1, &Event::Fail).unwrap();
 
         assert_eq!(snapshot.id().as_str(), "workflow-1");
         assert_eq!(snapshot.revision(), 1);
         assert_eq!(snapshot.status(), WorkflowStatus::Running);
         assert_eq!(snapshot.state(), &State { steps: 1 });
         assert_eq!(workflow.status(), WorkflowStatus::Failed);
+
+        let restored = WorkflowInstance::restore(snapshot);
+        assert_eq!(restored.id().as_str(), "workflow-1");
+        assert_eq!(restored.revision(), 1);
+        assert_eq!(restored.status(), WorkflowStatus::Running);
+        assert_eq!(restored.state(), &State { steps: 1 });
     }
 
     #[test]
