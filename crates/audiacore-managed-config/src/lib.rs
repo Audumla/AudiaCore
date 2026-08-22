@@ -11,20 +11,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 use audiacore_host::{FileHost, FileReadAuthority, FileWriteAuthority};
 use audiacore_reconcile::{OwnerId, ReconcileAction, plan as reconcile_presence};
 
-const HOST_OPERATION_FAILED: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("IO-MCONFIG-001"),
-    "Managed configuration host operation failed.",
-    "Inspect the underlying host error and verify the target authority and storage state.",
-);
-const OWNERSHIP_MISMATCH: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CON-MCONFIG-001"),
-    "Managed configuration ownership does not match the target.",
-    "Re-plan the change for the target's current ownership identity before applying it.",
-);
+const HOST_OPERATION_FAILED: ErrorCode = ErrorCode::new("IO-MCONFIG-001");
+const OWNERSHIP_MISMATCH: ErrorCode = ErrorCode::new("CON-MCONFIG-001");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedConfigTarget {
@@ -80,10 +72,10 @@ pub enum ManagedConfigError<E> {
 }
 
 impl<E> CodedError for ManagedConfigError<E> {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::Host(_) => &HOST_OPERATION_FAILED,
-            Self::OwnershipMismatch { .. } => &OWNERSHIP_MISMATCH,
+            Self::Host(_) => HOST_OPERATION_FAILED,
+            Self::OwnershipMismatch { .. } => OWNERSHIP_MISMATCH,
         }
     }
 }
