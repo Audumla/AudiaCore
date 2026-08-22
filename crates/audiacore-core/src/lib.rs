@@ -147,10 +147,7 @@ mod tests {
 
     #[test]
     fn application_composition_is_opaque_and_replaceable() {
-        let application = Application::new(
-            ApplicationId::new("demo").unwrap(),
-            ("events", 4_u32),
-        );
+        let application = Application::new(ApplicationId::new("demo").unwrap(), ("events", 4_u32));
 
         let mapped = application.map(|(_, retention)| retention as u64);
 
