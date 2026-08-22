@@ -20,6 +20,24 @@ pub enum ErrorCategory {
     Unsupported,
 }
 
+impl ErrorCategory {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Validation => "validation",
+            Self::Constraint => "constraint",
+            Self::Resource => "resource",
+            Self::Io => "io",
+            Self::Network => "network",
+            Self::Timeout => "timeout",
+            Self::External => "external",
+            Self::Configuration => "configuration",
+            Self::Version => "version",
+            Self::Internal => "internal",
+            Self::Unsupported => "unsupported",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ErrorCode(&'static str);
 
@@ -193,6 +211,7 @@ mod tests {
         let error = ExampleError;
         assert_eq!(error.code().as_str(), "CON-ERRORS-001");
         assert_eq!(error.category(), ErrorCategory::Constraint);
+        assert_eq!(error.category().as_str(), "constraint");
     }
 
     #[test]
