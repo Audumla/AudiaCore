@@ -23,8 +23,8 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | --- | --- | --- | --- |
 | 0 | Repository + build discipline | Can the repository enforce cleanliness and repeatable cross-platform validation before code exists? | ACCEPTED |
 | 1 | Core | What semantics are genuinely universal enough to sit at the dependency floor? | ACCEPTED |
-| 2 | Error contract | What stable failure identity is required without creating a global error framework? | READY |
-| 3 | Pure foundation semantics | Which reusable deterministic concepts earn independent crates? | BLOCKED BY 2 |
+| 2 | Error contract | What stable failure identity is required without creating a global error framework? | ACCEPTED |
+| 3 | Pure foundation semantics | Which reusable deterministic concepts earn independent crates? | IN PROGRESS |
 | 4 | Host contracts | Which effects are proven strongly enough to require narrow authority-bearing contracts? | BLOCKED BY 3 |
 | 5 | Native host | Can OS effects be contained behind those contracts without leaking implementation APIs? | BLOCKED BY 4 |
 | 6 | Application capabilities | Which reusable behaviours belong above host/foundation and below application authority? | BLOCKED BY 5 |
@@ -32,8 +32,6 @@ A green build alone is insufficient: dependency direction, effect ownership, err
 | 8 | Full layer-lock audit | Does the complete dependency/effect graph still satisfy the original principles without exceptions? | BLOCKED BY 7 |
 
 ## Target dependency direction under test
-
-The following is a hypothesis, not a foregone conclusion. Each stage may simplify it if the clean-room proof shows a boundary is unnecessary.
 
 ```text
 future application/domain authority
@@ -49,7 +47,9 @@ pure foundation semantics
 core
 ```
 
-## Global design invariants to challenge continuously
+This is a hypothesis. A stage may simplify it if a boundary cannot justify itself.
+
+## Global design invariants
 
 - Dependencies flow downward only.
 - Core is small, capability-neutral, and effect-free.
@@ -64,72 +64,63 @@ core
 
 ## Stage 0 — repository + build discipline
 
-### Decision
+Accepted head: `def74266e38e69553b3481978a74d9a13ed97f57`  
+Workflow run: `32550330851` (run #2)  
+Ubuntu/macOS/Windows: passed.
 
-No product crate belongs in Stage 0. The stage exists only to establish a reproducible build environment, one canonical repository instruction surface, one canonical revalidation plan, and one cross-platform validation entry point.
-
-### Evidence
-
-- Stage implementation head: `def74266e38e69553b3481978a74d9a13ed97f57`
-- Workflow run: `32550330851` (run #2)
-- Ubuntu 24.04: passed
-- macOS 15: passed
-- Windows 2025: passed
-
-**Stage 0 accepted.**
+**Decision:** repository/toolchain/hygiene discipline exists before product code.
 
 ## Stage 1 — core
 
-### Hypothesis
+Accepted head: `d626ef9886e4ad9eb8ae23f46ea8ee4b80e26126`  
+Workflow run: `32550518423` (run #16)  
+Ubuntu/macOS/Windows: passed.
 
-> Core should contain only semantics that every future application composition needs regardless of capability, provider, host or runtime choice.
+**Accepted:** validated application/execution/correlation identity, identity-only `ExecutionContext`, opaque `Application<C>`.
 
-### Accepted surface
+**Rejected from core:** capability/component taxonomy, lifecycle, diagnostics/error codes, policy/authority, service registries, I/O, environment, runtime, tracing, serialization and provider semantics.
 
-- validated `ApplicationId`;
-- validated `ExecutionId` and `CorrelationId`;
-- `ExecutionContext` as an identity carrier only;
-- opaque `Application<C>` composition.
+## Stage 2 — stable error contract
 
-### Explicitly rejected from core
+Accepted head: `b87ed88b8c3d43efcb47d6564a5932505916479e`  
+Workflow run: `32550714414` (run #30)  
+Ubuntu/macOS/Windows: passed.
 
-- capability/component identifiers;
-- lifecycle state machines;
-- diagnostics/error codes;
-- policy or authority;
-- service registries/DI;
-- I/O, environment, async runtime, tracing, serialization or provider semantics.
+**Accepted:** zero-dependency `ErrorCode`, derived `ErrorCategory`, static `ErrorDefinition`, optional `CodedError` trait and repository-wide duplicate-code enforcement.
 
-### Evidence
+**Rejected:** registry, YAML/runtime loader, logger, serializer, transport envelope, manager, dependency on core, and universal base error hierarchy.
 
-- First validation attempt failed only rustfmt; semantics were unchanged.
-- Accepted head: `d626ef9886e4ad9eb8ae23f46ea8ee4b80e26126`
-- Workflow run: `32550518423` (run #16)
-- Ubuntu 24.04: passed
-- macOS 15: passed
-- Windows 2025: passed
-- Core has zero crate dependencies and passes the effect/vocabulary architecture gate.
+## Stage 3 — pure foundation semantics
 
-**Stage 1 accepted.**
+Stage 3 is split internally so abstractions are justified independently.
 
-## Stage 2 — stable error contract hypothesis
+### Stage 3A — deterministic semantic primitives
 
-The error layer must solve only stable reusable failure identity. It must not become a global runtime error registry or force every low-level Rust error into one universal hierarchy.
+Candidates:
 
-Candidate minimal surface:
+- `sensitive`: explicit secret/redaction semantics and safe metadata keys;
+- `template`: tiny deterministic named-slot rendering, not a general template engine;
+- `reconcile`: pure desired-vs-observed planning with effects represented as data.
 
-- `ErrorCode` with compile-time shape validation;
-- `ErrorCategory` derived from the code prefix rather than independently stored;
-- `ErrorDefinition { code, message, resolution }`;
-- optional `CodedError` trait for reusable capability/application boundaries.
+Constraints:
 
-Design constraints:
+- only `audiacore-errors` may be depended on;
+- no core dependency unless a concrete semantic need is demonstrated;
+- no filesystem, environment, process, network, async runtime or telemetry;
+- each public semantic failure has stable coded identity;
+- no managers, registries or runtime ownership.
 
-- zero normal dependencies;
-- one stable code identifies one semantic condition;
-- canonical message/resolution are static and safe;
-- dynamic context stays in the owning typed error;
-- no registry, YAML loader, logger, serializer, transport envelope, manager or dependency on core;
-- core remains below and independent of the error contract.
+### Stage 3B — configuration
 
-Stage 2 acceptance will require code-shape/category tests, duplicate-code enforcement in CI, zero dependencies, and no upward/application vocabulary.
+Configuration is evaluated separately because it is the first foundation candidate that may justify third-party parsing/merge machinery.
+
+Required semantics:
+
+- explicit ordered in-memory layers;
+- typed resolved configuration;
+- deterministic provenance revision over exact ordered inputs;
+- layer identities retained in the result;
+- no source discovery, filesystem, environment or remote acquisition;
+- no policy semantics inside the configuration library.
+
+The implementation dependency choice (Figment versus a smaller alternative) is deliberately not pre-locked; Stage 3B must justify it from the required behaviour.
