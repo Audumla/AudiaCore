@@ -6,11 +6,7 @@
 //! global registry, and never exposes diagnostic error details implicitly to
 //! templates.
 
-use std::{
-    collections::BTreeMap,
-    error::Error,
-    fmt,
-};
+use std::{collections::BTreeMap, error::Error, fmt};
 
 use audiacore_errors::ErrorCode;
 use audiacore_template::{Template, TemplateContext, TemplateError, TemplateValue};
@@ -194,12 +190,11 @@ fn parse_layer(
     source: &str,
     yaml: &str,
 ) -> Result<BTreeMap<String, ErrorDefinition>, ErrorCatalogueError> {
-    let RawCatalogue(raw) = yaml_serde::from_str(yaml).map_err(|error| {
-        ErrorCatalogueError::InvalidYaml {
+    let RawCatalogue(raw) =
+        yaml_serde::from_str(yaml).map_err(|error| ErrorCatalogueError::InvalidYaml {
             source_name: source.to_owned(),
             source: error,
-        }
-    })?;
+        })?;
 
     let mut parsed = BTreeMap::new();
     for (code, raw) in raw {
@@ -345,7 +340,11 @@ impl fmt::Display for ErrorCatalogueError {
                 "duplicate error code {code} in {first_source} and {second_source}"
             ),
             Self::MissingDefinition { code } => {
-                write!(f, "no configured definition registered for {}", code.as_str())
+                write!(
+                    f,
+                    "no configured definition registered for {}",
+                    code.as_str()
+                )
             }
             Self::Render { code, .. } => write!(
                 f,
@@ -384,10 +383,7 @@ CON-WORKFLOW-002:
 
     fn params() -> TemplateContext<String, TemplateValue> {
         let mut workflow = TemplateContext::new();
-        workflow.insert(
-            "id".to_owned(),
-            TemplateValue::String("wf-7".to_owned()),
-        );
+        workflow.insert("id".to_owned(), TemplateValue::String("wf-7".to_owned()));
         let mut params = TemplateContext::new();
         params.insert("workflow".to_owned(), TemplateValue::Object(workflow));
         params.insert("expected".to_owned(), TemplateValue::from(3));
@@ -398,7 +394,9 @@ CON-WORKFLOW-002:
     #[test]
     fn component_catalogue_owns_static_error_presentation() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("workflow/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("workflow/errors.yaml", BASE)
+            .unwrap();
 
         let rendered = catalogue
             .render(ErrorCode::new("CON-WORKFLOW-002"), &params())
@@ -425,24 +423,31 @@ CON-WORKFLOW-002:
     #[test]
     fn missing_required_params_fail_without_accessing_diagnostics_or_ambient_state() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("workflow/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("workflow/errors.yaml", BASE)
+            .unwrap();
         let error = catalogue
-            .render(
-                ErrorCode::new("CON-WORKFLOW-002"),
-                &TemplateContext::new(),
-            )
+            .render(ErrorCode::new("CON-WORKFLOW-002"), &TemplateContext::new())
             .unwrap_err();
 
         assert!(matches!(error, ErrorCatalogueError::Render { .. }));
-        assert_eq!(error.source().unwrap().to_string(), "missing template value: workflow.id");
+        assert_eq!(
+            error.source().unwrap().to_string(),
+            "missing template value: workflow.id"
+        );
     }
 
     #[test]
     fn extra_message_params_are_tolerated() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("workflow/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("workflow/errors.yaml", BASE)
+            .unwrap();
         let mut values = params();
-        values.insert("unused".to_owned(), TemplateValue::String("safe".to_owned()));
+        values.insert(
+            "unused".to_owned(),
+            TemplateValue::String("safe".to_owned()),
+        );
 
         assert!(
             catalogue
@@ -483,7 +488,9 @@ VAL-THING-001:
     #[test]
     fn explicit_overlay_replaces_the_complete_definition_atomically() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("workflow/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("workflow/errors.yaml", BASE)
+            .unwrap();
         catalogue
             .overlay_yaml(
                 "project/errors.yaml",
