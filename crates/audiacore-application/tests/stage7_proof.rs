@@ -9,11 +9,13 @@ use std::{
 };
 
 use audiacore_application::{
-    ManagedConfigComposition, ManagedConfigPolicy, execute_managed_config,
+    ManagedConfigComposition, ManagedConfigPolicy, MessageContext, execute_managed_config,
+    present_error,
 };
 use audiacore_config::{ConfigLayerId, ConfigLayers};
 use audiacore_core::{Application, ApplicationId, CorrelationId, ExecutionContext, ExecutionId};
 use audiacore_error_catalog::ErrorCatalogue;
+use audiacore_errors::CodedError;
 use audiacore_host::{FileReadAuthority, FileWriteAuthority};
 use audiacore_host_native::NativeFileHost;
 use audiacore_managed_config::{ManagedConfigApplyResult, ManagedConfigTarget};
@@ -146,4 +148,25 @@ desired = "configured-value"
     assert!(log.contains("execution_id=execution-7"));
     assert!(log.contains("correlation_id=correlation-7"));
     assert!(log.contains("result=Created"));
+
+    let outside_target = ManagedConfigTarget::new(
+        PathBuf::from("..").join("outside.conf"),
+        OwnerId::new("stage7-owner").unwrap(),
+    );
+    let outside_policy = ManagedConfigPolicy::new(outside_target, Some(b"denied".to_vec()));
+    let error = execute_managed_config(&application, &execution, &outside_policy).unwrap_err();
+    assert_eq!(error.code().as_str(), "IO-MCONFIG-001");
+
+    let presented = present_error(
+        application.composition().errors(),
+        &error,
+        &MessageContext::new(),
+    );
+    assert!(presented.configured());
+    assert_eq!(presented.code(), error.code());
+    assert_eq!(presented.kind(), "io");
+    assert_eq!(
+        presented.message(),
+        "Managed configuration host operation failed."
+    );
 }
