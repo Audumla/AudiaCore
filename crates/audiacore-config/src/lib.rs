@@ -6,25 +6,13 @@
 
 use std::{error::Error, fmt};
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 use serde::de::DeserializeOwned;
 use toml::{Table, Value};
 
-const EMPTY_LAYER_ID: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-CONFIG-001"),
-    "Configuration layer id must not be empty.",
-    "Provide a non-empty identity for every configuration layer.",
-);
-const INVALID_LAYER: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CFG-CONFIG-001"),
-    "Configuration layer is invalid TOML.",
-    "Correct the TOML content for the identified configuration layer.",
-);
-const RESOLUTION_FAILED: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("CFG-CONFIG-002"),
-    "Configuration resolution failed.",
-    "Correct the effective configuration so it matches the requested typed schema.",
-);
+const EMPTY_LAYER_ID: ErrorCode = ErrorCode::new("VAL-CONFIG-001");
+const INVALID_LAYER: ErrorCode = ErrorCode::new("CFG-CONFIG-001");
+const RESOLUTION_FAILED: ErrorCode = ErrorCode::new("CFG-CONFIG-002");
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x00000100000001b3;
@@ -80,11 +68,11 @@ pub enum ConfigError {
 }
 
 impl CodedError for ConfigError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::EmptyLayerId => &EMPTY_LAYER_ID,
-            Self::InvalidLayer { .. } => &INVALID_LAYER,
-            Self::ResolutionFailed { .. } => &RESOLUTION_FAILED,
+            Self::EmptyLayerId => EMPTY_LAYER_ID,
+            Self::InvalidLayer { .. } => INVALID_LAYER,
+            Self::ResolutionFailed { .. } => RESOLUTION_FAILED,
         }
     }
 }
