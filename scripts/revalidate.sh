@@ -24,8 +24,6 @@ done
 [[ -f docs/architecture/revalidation.md ]] || fail "missing canonical revalidation plan"
 [[ -f .github/workflows/revalidation.yml ]] || fail "missing canonical revalidation workflow"
 
-# Clean-room repository: reject known compatibility/legacy debris and duplicate
-# provider-specific instruction surfaces. Git history is the archive.
 for path in \
   CLAUDE.md COPILOT.md GEMINI.md QWEN.md \
   pyproject.toml uv.lock package.json package-lock.json Makefile \
@@ -53,8 +51,6 @@ if [[ -f Cargo.toml ]]; then
   echo "RUST_WORKSPACE_OK"
 fi
 
-# Stage 1: core is the dependency floor. It must remain dependency-free,
-# effect-free, and free of semantics owned by later layers.
 if [[ -d crates/audiacore-core ]]; then
   core_manifest="crates/audiacore-core/Cargo.toml"
   core_src="crates/audiacore-core/src"
@@ -78,6 +74,40 @@ if [[ -d crates/audiacore-core ]]; then
   grep -q 'string_id!(CorrelationId' "$core_src/lib.rs" || fail "core lacks validated correlation identity"
 
   echo "CORE_LAYER_OK"
+fi
+
+# Stage 2: stable error identity is a zero-dependency foundation contract, not
+# a registry/runtime. Codes must be globally unique at their definition sites.
+if [[ -d crates/audiacore-errors ]]; then
+  errors_manifest="crates/audiacore-errors/Cargo.toml"
+  errors_src="crates/audiacore-errors/src"
+
+  if grep -Eq 'dependencies\]$' "$errors_manifest"; then
+    fail "error contract must have zero normal/dev/build dependencies"
+  fi
+
+  if grep -R -n -E 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-core' "$errors_src" "$errors_manifest"; then
+    fail "error contract contains an upward/effect/runtime dependency"
+  fi
+
+  grep -q 'pub struct ErrorCode' "$errors_src/lib.rs" || fail "missing stable ErrorCode"
+  grep -q 'pub enum ErrorCategory' "$errors_src/lib.rs" || fail "missing derived ErrorCategory"
+  grep -q 'pub struct ErrorDefinition' "$errors_src/lib.rs" || fail "missing canonical ErrorDefinition"
+  grep -q 'pub trait CodedError' "$errors_src/lib.rs" || fail "missing optional CodedError boundary trait"
+
+  duplicate_error_codes="$(
+    find crates -type f -name '*.rs' -exec grep -hoE 'ErrorCode::new\("[A-Z][A-Z0-9-]*-[0-9]{3}"\)' {} + 2>/dev/null \
+      | sed -E 's/.*ErrorCode::new\("([^"]+)"\).*/\1/' \
+      | sort \
+      | uniq -d || true
+  )"
+  if [[ -n "$duplicate_error_codes" ]]; then
+    echo "DUPLICATE_ERROR_CODE: each stable code must identify exactly one semantic condition" >&2
+    printf '%s\n' "$duplicate_error_codes" >&2
+    exit 1
+  fi
+
+  echo "ERROR_CONTRACT_OK"
 fi
 
 echo "AUDIACORE_REVALIDATION_OK"
