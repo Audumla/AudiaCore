@@ -10,6 +10,7 @@ members = [
     "crates/audiacore-host-native",
     "crates/audiacore-events",
     "crates/audiacore-workflow",
+    "crates/audiacore-time",
 ]
 resolver = "3"
 
