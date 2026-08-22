@@ -12,29 +12,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use audiacore_errors::{CodedError, ErrorCode, ErrorDefinition};
+use audiacore_errors::{CodedError, ErrorCode};
 use audiacore_sensitive::Sensitive;
 
-const FILE_ROOT_NOT_ABSOLUTE: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-HOST-FILE-001"),
-    "File authority root must be absolute.",
-    "Resolve the authority root to an absolute application-owned path before granting access.",
-);
-const PROCESS_PROGRAM_NOT_ABSOLUTE: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-HOST-PROCESS-001"),
-    "Process program path must be absolute.",
-    "Resolve executable paths to absolute application-owned values before granting or requesting launch.",
-);
-const PROCESS_CURRENT_DIR_NOT_ABSOLUTE: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-HOST-PROCESS-002"),
-    "Process working directory must be absolute.",
-    "Resolve the child working directory to an absolute path before building the process request.",
-);
-const PROCESS_ENVIRONMENT_KEY_EMPTY: ErrorDefinition = ErrorDefinition::new(
-    ErrorCode::new("VAL-HOST-PROCESS-003"),
-    "Process environment key must not be empty.",
-    "Provide a non-empty environment variable key.",
-);
+const FILE_ROOT_NOT_ABSOLUTE: ErrorCode = ErrorCode::new("VAL-HOST-FILE-001");
+const PROCESS_PROGRAM_NOT_ABSOLUTE: ErrorCode = ErrorCode::new("VAL-HOST-PROCESS-001");
+const PROCESS_CURRENT_DIR_NOT_ABSOLUTE: ErrorCode = ErrorCode::new("VAL-HOST-PROCESS-002");
+const PROCESS_ENVIRONMENT_KEY_EMPTY: ErrorCode = ErrorCode::new("VAL-HOST-PROCESS-003");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileAuthorityError {
@@ -42,9 +26,9 @@ pub enum FileAuthorityError {
 }
 
 impl CodedError for FileAuthorityError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::RootNotAbsolute(_) => &FILE_ROOT_NOT_ABSOLUTE,
+            Self::RootNotAbsolute(_) => FILE_ROOT_NOT_ABSOLUTE,
         }
     }
 }
@@ -140,11 +124,11 @@ pub enum ProcessContractError {
 }
 
 impl CodedError for ProcessContractError {
-    fn definition(&self) -> &'static ErrorDefinition {
+    fn code(&self) -> ErrorCode {
         match self {
-            Self::ProgramNotAbsolute(_) => &PROCESS_PROGRAM_NOT_ABSOLUTE,
-            Self::CurrentDirNotAbsolute(_) => &PROCESS_CURRENT_DIR_NOT_ABSOLUTE,
-            Self::EmptyEnvironmentKey => &PROCESS_ENVIRONMENT_KEY_EMPTY,
+            Self::ProgramNotAbsolute(_) => PROCESS_PROGRAM_NOT_ABSOLUTE,
+            Self::CurrentDirNotAbsolute(_) => PROCESS_CURRENT_DIR_NOT_ABSOLUTE,
+            Self::EmptyEnvironmentKey => PROCESS_ENVIRONMENT_KEY_EMPTY,
         }
     }
 }
