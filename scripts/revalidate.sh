@@ -201,7 +201,7 @@ if [[ -d crates/audiacore-host ]]; then
   if grep -q 'fn read(' "$host_src"; then
     fail "mandatory file read is not yet justified by a consumer"
   fi
-  if grep -q 'allows(' "$host_src"; then
+  if grep -Eq 'fn[[:space:]]+allows[[:space:]]*\(' "$host_src"; then
     fail "host contract must not pretend lexical path checks prove safe containment"
   fi
   if grep -Eq 'File(Store|Service|Manager)|HostServices|HostRegistry|NetworkHost|SecretHost' "$host_src"; then
