@@ -40,9 +40,24 @@ jobs:
         with:
           toolchain: '1.95.0'
           components: rustfmt, clippy
+      - name: Generate Stage 7 lockfile
+        shell: bash
+        run: cargo generate-lockfile
+      - name: Format Stage 7 sources
+        shell: bash
+        run: cargo fmt --all
       - name: Revalidate foundation and capabilities
         shell: bash
         run: bash scripts/revalidate.sh
       - name: Revalidate Stage 7 application edge
         shell: bash
         run: bash scripts/revalidate-stage7.sh
+      - name: Upload Stage 7 bootstrap
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage7-bootstrap
+          path: |
+            Cargo.lock
+            crates/audiacore-application/src/lib.rs
+            crates/audiacore-application/tests/stage7_proof.rs
