@@ -61,8 +61,8 @@ The clean-room rebuild may simplify this structure whenever a proposed boundary 
 | 4B | Process host contract + authority | ACCEPTED |
 | 5A | Native file effects + containment | ACCEPTED |
 | 5B | Native process effects + lifecycle | ACCEPTED |
-| 6A | Events capability | IN PROGRESS |
-| 6B | Workflow capability | BLOCKED BY 6A |
+| 6A | Events capability | ACCEPTED |
+| 6B | Workflow capability | IN PROGRESS |
 | 6C | Time capability | BLOCKED BY 6B |
 | 6D | Managed-config capability | BLOCKED BY 6C |
 | 7 | Composition + policy + observability proof | BLOCKED BY 6D |
@@ -150,39 +150,53 @@ Cross-platform tests use the test executable itself rather than shell-specific c
 
 No generic cross-effect native error hierarchy, async runtime, provider/session abstraction, process manager, or descendant-tree containment claim was introduced.
 
-## Stage 6 — application capabilities
-
-Capabilities are revalidated independently. A capability may use lower semantic contracts but may not acquire configuration, perform unmediated native I/O, own global runtime infrastructure, or turn policy into authority.
-
 ### Stage 6A — events
 
-Required semantics:
+Accepted head: `4fdbd7c7a0fa10e6a16af60db788f9cb3c81b088`  
+Workflow run: `32555075146` (#178) — Ubuntu/macOS/Windows passed.
 
-- typed event, stream, and causation identity;
-- core `CorrelationId` carried on each event envelope;
-- caller-owned monotonic sequence assignment with checked exhaustion;
-- explicit typed `EventPolicy` for unbounded or bounded in-memory retention;
-- retained-event iteration;
-- cursor paging that distinguishes caught-up, expired, and ahead cursors;
-- stable coded validation/conflict/resource failures.
+Accepted typed event/stream/causation identity; core correlation identity on envelopes; caller-owned monotonic sequence assignment with checked exhaustion; explicit `EventPolicy`; bounded/unbounded in-memory retention; retained iteration; and typed cursor paging with caught-up/expired/ahead semantics.
 
-Why cursor paging earns its place: once bounded retention exists, incremental consumers need a typed distinction between an available cursor, an expired cursor whose evidence was evicted, and a cursor that is ahead of the stream. Without that contract, bounded retention would make incremental observation ambiguous.
+Cursor paging earns its place because bounded retention otherwise makes incremental observation ambiguous: a consumer must be able to distinguish an available cursor from evidence already evicted and from a cursor ahead of the stream.
 
-Clean-room reductions from the previous implementation:
+Clean-room reductions:
 
-- `EventStream::new(stream_id, policy)` requires an explicit policy; there is no `EventStream::bounded(...)` shortcut;
-- the redundant `after(sequence)` convenience iterator is omitted; `iter()` is the retained-view API and cursor paging is the incremental-read API.
+- every `EventStream` is constructed with an explicit `EventPolicy`; there is no `EventStream::bounded(...)` shortcut;
+- the redundant `after(sequence)` convenience iterator is omitted; `iter()` is the retained-view API and cursor paging is the incremental-read API;
+- one neutral capability-local `EventError` replaces the misleading policy-returning-`EventStreamError` naming.
 
-Deliberate exclusions:
+No event bus, broker, publisher/subscriber registry, queue, transport, retry engine, persistence, durable replay, scheduler, tracing, config, host, or native-effect dependency was introduced.
 
-- no event bus, broker, publisher/subscriber registry, fan-out, queue, transport, retry engine, persistence, durable replay, scheduler, global singleton, tracing, or host effects;
-- no configuration dependency: applications may derive `EventPolicy` from config, CLI, API, defaults, tests, or any other source.
+## Stage 6 — application capabilities
 
-Planned dependency boundary: `audiacore-events` depends only on `audiacore-core` and `audiacore-errors`.
+Capabilities are revalidated independently. They may use lower semantic contracts but may not acquire configuration, perform unmediated native I/O, own global runtime infrastructure, or turn policy into authority.
 
 ### Stage 6B — workflow
 
-After 6A acceptance, revalidate deterministic domain-owned transition decisions, effects-as-data, revision conflict/exhaustion safety, terminal state, and snapshot/recovery semantics. Generic lifecycle remains outside core.
+Required semantics:
+
+- validated workflow instance identity;
+- workflow-local status (`Running`, `Completed`, `Failed`) rather than a generic lifecycle abstraction in core;
+- domain-owned deterministic transition decisions through a definition trait;
+- effects emitted as data only;
+- monotonic revision assigned by the workflow instance;
+- optimistic revision check before domain logic;
+- terminal-state rejection before domain logic;
+- revision exhaustion check before domain logic and before state mutation;
+- receipt carrying the new revision, status, and effects;
+- an owned snapshot carrying id, revision, status, and cloned state so an application may persist/recover it without this capability owning storage.
+
+Why snapshot semantics earn their place: workflow state/revision/status form one consistency boundary. An owned snapshot is the neutral checkpoint value an application can persist, serialize, compare, or transfer later without exposing storage or serialization concerns to the workflow capability.
+
+Planned dependency boundary: `audiacore-workflow` depends only on `audiacore-errors`. It does not depend on core, events, config, host, native host, time, tracing, or a runtime.
+
+Deliberate exclusions:
+
+- no generic lifecycle framework;
+- no event publication or dependency on `audiacore-events`;
+- no persistence/store/repository abstraction;
+- no scheduler, retry/backoff, clock, timer, async runtime, task execution, compensation engine, or global workflow registry;
+- no provider/session/application semantics.
 
 ### Stage 6C — time
 
