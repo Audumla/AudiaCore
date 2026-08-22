@@ -11,7 +11,7 @@ on:
       - 'rust-toolchain.toml'
       - 'crates/**'
       - 'examples/**'
-      - 'scripts/revalidate.sh'
+      - 'scripts/**'
       - 'docs/architecture/**'
       - 'AGENTS.md'
       - '.github/workflows/revalidation.yml'
@@ -40,6 +40,9 @@ jobs:
         with:
           toolchain: '1.95.0'
           components: rustfmt, clippy
-      - name: Revalidate current stage
+      - name: Revalidate foundation and capabilities
         shell: bash
         run: bash scripts/revalidate.sh
+      - name: Revalidate Stage 7 application edge
+        shell: bash
+        run: bash scripts/revalidate-stage7.sh
