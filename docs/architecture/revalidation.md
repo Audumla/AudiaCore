@@ -73,8 +73,8 @@ The clean-room rebuild may simplify this structure whenever a proposed boundary 
 | 6C | Time capability | ACCEPTED |
 | 6D | Managed-config capability | ACCEPTED |
 | corrective | Configured error presentation + template realignment | ACCEPTED |
-| 7 | Composition + policy + observability proof | IN PROGRESS |
-| 8 | Full layer-lock audit | BLOCKED BY 7 |
+| 7 | Composition + policy + observability proof | ACCEPTED |
+| 8 | Full layer-lock audit | NEXT |
 
 ## Accepted checkpoints
 
@@ -245,22 +245,27 @@ This correction reopened only the cross-cutting presentation assumptions, not th
 
 ## Stage 7 — composition + policy + observability proof
 
-Status: **IN PROGRESS**.
+Accepted head: `9ee04ce0d57aee0a00707765e894f245efaf3941`  
+Workflow run: `32566520037` (#338) — Ubuntu/macOS/Windows passed with the committed lockfile and immutable CI.
 
-Stage 7 must prove the existing layers compose without introducing a container/framework:
+Accepted a narrow `audiacore-application` edge proving the lower layers compose without a service container or runtime framework:
 
-1. use `Application<C>` with a concrete typed composition rather than a service locator or registry;
-2. construct typed behaviour policy independently of its source, while proving `ResolvedConfig<T>` can be one source;
-3. supply authorities independently from policy so configuration cannot grant effects;
-4. exercise a real native effect through the existing narrow host boundary;
-5. render coded errors through a caller-owned configured catalogue and explicit mapping-only message context;
-6. redact recognized `Sensitive<T>` values before message rendering and provide a deterministic code-preserving fallback when configured presentation cannot render;
-7. emit structured tracing at the application execution edge carrying application, execution, correlation, outcome, and stable error-code fields;
-8. keep tracing subscribers/exporters edge-owned and keep lower semantic/capability crates tracing-free;
-9. add no global registry, runtime container, scheduler, manager layer, or configuration/native dependency to the reusable policy type.
+- `Application<C>` carries an ordinary typed `ManagedConfigComposition<H>`; no service locator, component registry, provider registry, global context, or dependency container was introduced;
+- `ManagedConfigPolicy` is source-independent and contains behaviour inputs only. The proof builds the same policy both directly and from `ResolvedConfig<T>`; configuration is a proof/dev dependency rather than a reusable policy dependency;
+- file read/write authorities are supplied separately from policy, so configuration cannot grant effects;
+- the concrete `NativeFileHost` remains a proof/dev dependency rather than leaking into the reusable composition API;
+- a real native create is exercised and verified from the filesystem;
+- a real outside-authority operation is rejected, retains `IO-MCONFIG-001`, and is then rendered through the caller-owned managed-config error catalogue;
+- `MessageContext` is explicit JSON-like mapping data, recognized `Sensitive<T>` values are projected as `[REDACTED]`, and configured presentation failure falls back deterministically while preserving the original stable code and avoiding diagnostic-text leakage;
+- structured `tracing` spans/events are emitted at the application execution edge with application, execution, correlation, outcome, and stable error-code fields;
+- the tracing subscriber exists only in the application proof, not in foundation/capability crates;
+- `ErrorCategory::as_str()` was re-earned as stable category identity because Stage 7 has a concrete fallback/observability consumer; `ErrorCode` presentation and hard-coded canonical messages were not restored;
+- architecture gates enforce the direct-composition shape, dependency split, edge-owned observability, redaction/fallback tests, and real native failure-to-configured-presentation path.
 
-The first proving consumer is managed configuration because it already separates pure planning from effect authority and can demonstrate a real native filesystem effect without inventing additional product abstractions.
+No global registry, runtime container, scheduler, manager layer, async runtime, configuration-source coupling in policy, or native-host coupling in the reusable application API was introduced.
 
 ## Stage 8 target
 
-After Stage 7 is accepted, run the full layer-lock audit. Stage 8 should primarily verify dependency direction, effect ownership, policy/authority separation, configured error ownership, template safety, event/trace/output separation, absence of speculative abstractions, documentation accuracy, and all-platform locked CI. It should add no product functionality unless the audit exposes a concrete missing contract.
+Status: **NEXT**.
+
+Run the full layer-lock audit. Stage 8 should primarily verify dependency direction, effect ownership, policy/authority separation, configured error ownership, template safety, event/trace/output separation, absence of speculative abstractions, documentation accuracy, and all-platform locked CI. It should add no product functionality unless the audit exposes a concrete missing contract.
