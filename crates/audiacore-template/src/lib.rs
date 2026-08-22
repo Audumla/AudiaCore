@@ -59,7 +59,10 @@ impl Template {
         self.parts.iter().any(|part| matches!(part, Part::Slot(_)))
     }
 
-    pub fn render(&self, context: &TemplateContext<String, TemplateValue>) -> Result<String, TemplateError> {
+    pub fn render(
+        &self,
+        context: &TemplateContext<String, TemplateValue>,
+    ) -> Result<String, TemplateError> {
         let mut rendered = String::new();
         for part in &self.parts {
             match part {
@@ -144,10 +147,9 @@ mod tests {
 
     #[test]
     fn renders_established_single_brace_dotted_mapping_paths() {
-        let template = Template::parse(
-            "Provider {provider.name} resumed {session.provider-session-id}.",
-        )
-        .unwrap();
+        let template =
+            Template::parse("Provider {provider.name} resumed {session.provider-session-id}.")
+                .unwrap();
         let values = context(json!({
             "provider": {"name": "local"},
             "session": {"provider-session-id": "abc-123"}
@@ -170,10 +172,7 @@ mod tests {
             "nothing": null
         }));
 
-        assert_eq!(
-            template.render(&values).unwrap(),
-            "{\"a\":1}|[1,2]|3|true|"
-        );
+        assert_eq!(template.render(&values).unwrap(), "{\"a\":1}|[1,2]|3|true|");
     }
 
     #[test]
@@ -189,7 +188,10 @@ mod tests {
 
         let template = Template::parse("{profile.name}").unwrap();
         let error = template.render(&TemplateContext::new()).unwrap_err();
-        assert_eq!(error, TemplateError::MissingValue("profile.name".to_owned()));
+        assert_eq!(
+            error,
+            TemplateError::MissingValue("profile.name".to_owned())
+        );
         assert_eq!(error.code().as_str(), "RES-TEMPLATE-001");
     }
 
