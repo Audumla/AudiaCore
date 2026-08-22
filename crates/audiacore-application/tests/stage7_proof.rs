@@ -128,6 +128,7 @@ desired = "configured-value"
     let subscriber = tracing_subscriber::fmt()
         .without_time()
         .with_target(false)
+        .with_ansi(false)
         .with_writer(move || BufferWriter(writer.clone()))
         .finish();
 
