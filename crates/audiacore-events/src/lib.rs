@@ -135,9 +135,9 @@ impl EventPolicy {
         }
     }
 
-    pub fn bounded(retention_limit: usize) -> Result<Self, EventStreamError> {
+    pub fn bounded(retention_limit: usize) -> Result<Self, EventError> {
         let retention_limit =
-            NonZeroUsize::new(retention_limit).ok_or(EventStreamError::ZeroRetentionLimit)?;
+            NonZeroUsize::new(retention_limit).ok_or(EventError::ZeroRetentionLimit)?;
         Ok(Self {
             retention_limit: Some(retention_limit),
         })
@@ -185,7 +185,7 @@ impl<E> EventEnvelope<E> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EventStreamError {
+pub enum EventError {
     ZeroRetentionLimit,
     ZeroPageLimit,
     CursorExpired {
@@ -199,7 +199,7 @@ pub enum EventStreamError {
     SequenceExhausted,
 }
 
-impl CodedError for EventStreamError {
+impl CodedError for EventError {
     fn definition(&self) -> &'static ErrorDefinition {
         match self {
             Self::ZeroRetentionLimit => &ZERO_RETENTION_LIMIT,
@@ -211,7 +211,7 @@ impl CodedError for EventStreamError {
     }
 }
 
-impl fmt::Display for EventStreamError {
+impl fmt::Display for EventError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ZeroRetentionLimit => {
@@ -241,7 +241,7 @@ impl fmt::Display for EventStreamError {
     }
 }
 
-impl Error for EventStreamError {}
+impl Error for EventError {}
 
 #[derive(Debug)]
 pub struct EventPage<'a, E> {
@@ -320,12 +320,12 @@ impl<E> EventStream<E> {
         correlation_id: CorrelationId,
         causation_id: Option<CausationId>,
         payload: E,
-    ) -> Result<EventSequence, EventStreamError> {
+    ) -> Result<EventSequence, EventError> {
         let sequence = EventSequence::new(self.next_sequence);
         let next_sequence = self
             .next_sequence
             .checked_add(1)
-            .ok_or(EventStreamError::SequenceExhausted)?;
+            .ok_or(EventError::SequenceExhausted)?;
 
         self.events.push_back(EventEnvelope {
             event_id,
@@ -350,14 +350,14 @@ impl<E> EventStream<E> {
         &self,
         cursor: EventCursor,
         limit: usize,
-    ) -> Result<EventPage<'_, E>, EventStreamError> {
+    ) -> Result<EventPage<'_, E>, EventError> {
         if limit == 0 {
-            return Err(EventStreamError::ZeroPageLimit);
+            return Err(EventError::ZeroPageLimit);
         }
 
         let Some(oldest) = self.oldest_sequence() else {
             if cursor.get() > 0 {
-                return Err(EventStreamError::CursorAhead {
+                return Err(EventError::CursorAhead {
                     cursor,
                     latest_available: EventSequence::new(0),
                 });
@@ -371,13 +371,13 @@ impl<E> EventStream<E> {
         let latest = self.last_sequence().unwrap_or(oldest);
 
         if cursor.get().saturating_add(1) < oldest.get() {
-            return Err(EventStreamError::CursorExpired {
+            return Err(EventError::CursorExpired {
                 cursor,
                 oldest_available: oldest,
             });
         }
         if cursor.get() > latest.get() {
-            return Err(EventStreamError::CursorAhead {
+            return Err(EventError::CursorAhead {
                 cursor,
                 latest_available: latest,
             });
