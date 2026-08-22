@@ -40,15 +40,6 @@ jobs:
         with:
           toolchain: '1.95.0'
           components: rustfmt, clippy
-      - name: Generate Stage 6B lockfile
-        shell: bash
-        run: cargo generate-lockfile
-      - name: Upload generated lockfile
-        if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: stage-6b-cargo-lock
-          path: Cargo.lock
       - name: Revalidate current stage
         shell: bash
         run: bash scripts/revalidate.sh
