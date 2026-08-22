@@ -16,7 +16,10 @@ fn every_owner_local_catalogue_is_valid_and_codes_are_unique() {
         .collect::<Vec<_>>();
     paths.sort();
 
-    assert!(!paths.is_empty(), "workspace contains no owner-local error catalogues");
+    assert!(
+        !paths.is_empty(),
+        "workspace contains no owner-local error catalogues"
+    );
 
     let mut catalogue = ErrorCatalogue::new();
     for path in paths {
