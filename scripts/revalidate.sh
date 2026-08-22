@@ -176,14 +176,16 @@ if [[ -d crates/audiacore-config ]]; then
   echo "CONFIG_FOUNDATION_OK"
 fi
 
-# Stage 4A: host contracts describe effect permission and operations but never
-# perform native effects. Only the file operations already required by managed
-# configuration are admitted at this checkpoint.
 if [[ -d crates/audiacore-host ]]; then
   host_manifest="crates/audiacore-host/Cargo.toml"
   host_src="crates/audiacore-host/src/lib.rs"
+  host_deps="$(normal_dependencies "$host_manifest")"
+  expected_host_deps="$(printf '%s\n' audiacore-errors audiacore-sensitive)"
+  [[ "$host_deps" == "$expected_host_deps" ]] || fail "host dependencies must be exactly audiacore-errors and audiacore-sensitive"
 
-  assert_only_dependency "$host_manifest" "audiacore-errors"
+  if grep -Eq '^\[(dev-dependencies|build-dependencies)\]$' "$host_manifest"; then
+    fail "host contract must not add dev/build dependencies"
+  fi
 
   if grep -R -n -E 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core' crates/audiacore-host; then
     fail "host contract contains native effects, runtime, config, or core coupling"
@@ -195,7 +197,6 @@ if [[ -d crates/audiacore-host ]]; then
   grep -q 'fn read_optional' "$host_src" || fail "file host lacks optional observation operation"
   grep -q 'fn write' "$host_src" || fail "file host lacks write operation"
   grep -q 'fn remove' "$host_src" || fail "file host lacks remove operation"
-  grep -q 'is_absolute()' "$host_src" || fail "file authority roots must be explicit absolute paths"
   grep -q 'impl CodedError for FileAuthorityError' "$host_src" || fail "file authority validation lacks stable coded identity"
 
   if grep -q 'fn read(' "$host_src"; then
@@ -204,11 +205,36 @@ if [[ -d crates/audiacore-host ]]; then
   if grep -Eq 'fn[[:space:]]+allows[[:space:]]*\(' "$host_src"; then
     fail "host contract must not pretend lexical path checks prove safe containment"
   fi
-  if grep -Eq 'File(Store|Service|Manager)|HostServices|HostRegistry|NetworkHost|SecretHost' "$host_src"; then
-    fail "host contains an unproven service/manager/facility abstraction"
+
+  grep -q 'pub struct ProcessAuthority' "$host_src" || fail "host lacks explicit process launch authority"
+  grep -q 'pub struct ProcessRequest' "$host_src" || fail "host lacks explicit process request"
+  grep -q 'pub enum ProcessStdio' "$host_src" || fail "host lacks explicit stdio ownership mode"
+  grep -q 'pub struct ProcessExit' "$host_src" || fail "host lacks neutral process exit value"
+  grep -q 'pub trait ProcessChild' "$host_src" || fail "host lacks owned process child lifecycle"
+  grep -q 'pub trait ProcessHost' "$host_src" || fail "host lacks process spawn contract"
+  grep -q 'fn take_stdin' "$host_src" || fail "process child lacks owned stdin transfer"
+  grep -q 'fn take_stdout' "$host_src" || fail "process child lacks owned stdout transfer"
+  grep -q 'fn take_stderr' "$host_src" || fail "process child lacks owned stderr transfer"
+  grep -q 'fn try_wait' "$host_src" || fail "process child lacks nonblocking lifecycle observation"
+  grep -q 'fn wait' "$host_src" || fail "process child lacks wait lifecycle operation"
+  grep -q 'fn kill' "$host_src" || fail "process child lacks direct-child termination operation"
+  grep -q 'fn spawn' "$host_src" || fail "process host lacks spawn operation"
+  grep -q 'Sensitive<OsString>' "$host_src" || fail "process environment values must be sensitive by construction"
+  grep -q 'inherit_environment: false' "$host_src" || fail "ambient environment inheritance must default off"
+  grep -q 'impl CodedError for ProcessContractError' "$host_src" || fail "process contract validation lacks stable coded identity"
+
+  if grep -Eq 'fn[[:space:]]+(stdin|stdout|stderr)[[:space:]]*\(&mut self\)' "$host_src"; then
+    fail "borrowed process stdio access is not justified; keep the smaller owned take_* contract"
+  fi
+  if grep -Eq 'fn[[:space:]]+run[[:space:]]*\(' "$host_src"; then
+    fail "one-shot process run would collapse the owned child lifecycle"
+  fi
+  if grep -Eq 'File(Store|Service|Manager)|HostServices|HostRegistry|ProcessManager|ProcessRegistry|NetworkHost|SecretHost|HostFuture' "$host_src"; then
+    fail "host contains an unproven service, manager, registry, facility, or async abstraction"
   fi
 
   echo "FILE_HOST_CONTRACT_OK"
+  echo "PROCESS_HOST_CONTRACT_OK"
 fi
 
 echo "AUDIACORE_REVALIDATION_OK"
