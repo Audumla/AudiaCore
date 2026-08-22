@@ -24,6 +24,7 @@ name = "audiacore-host"
 version = "0.1.0"
 dependencies = [
  "audiacore-errors",
+ "audiacore-sensitive",
 ]
 
 [[package]]
