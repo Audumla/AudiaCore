@@ -175,9 +175,7 @@ pub struct ProcessAuthority {
 }
 
 impl ProcessAuthority {
-    pub fn new(
-        programs: impl IntoIterator<Item = PathBuf>,
-    ) -> Result<Self, ProcessContractError> {
+    pub fn new(programs: impl IntoIterator<Item = PathBuf>) -> Result<Self, ProcessContractError> {
         let mut validated = BTreeSet::new();
         for program in programs {
             validate_program_path(&program)?;
@@ -477,10 +475,7 @@ mod tests {
     #[test]
     fn process_request_rejects_ambient_relative_paths_and_empty_env_keys() {
         let relative_program = ProcessRequest::new("relative/tool").unwrap_err();
-        assert_eq!(
-            relative_program.code().as_str(),
-            "VAL-HOST-PROCESS-001"
-        );
+        assert_eq!(relative_program.code().as_str(), "VAL-HOST-PROCESS-001");
 
         let relative_dir = ProcessRequest::new(absolute_program())
             .unwrap()
