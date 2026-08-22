@@ -148,8 +148,6 @@ if [[ -d crates/audiacore-sensitive && -d crates/audiacore-template && -d crates
   echo "PURE_FOUNDATION_PRIMITIVES_OK"
 fi
 
-# Stage 3B: configuration resolves already-acquired text only. The dependency
-# surface is deliberately smaller than a general provider framework.
 if [[ -d crates/audiacore-config ]]; then
   config_manifest="crates/audiacore-config/Cargo.toml"
   config_src="crates/audiacore-config/src/lib.rs"
@@ -176,6 +174,41 @@ if [[ -d crates/audiacore-config ]]; then
   fi
 
   echo "CONFIG_FOUNDATION_OK"
+fi
+
+# Stage 4A: host contracts describe effect permission and operations but never
+# perform native effects. Only the file operations already required by managed
+# configuration are admitted at this checkpoint.
+if [[ -d crates/audiacore-host ]]; then
+  host_manifest="crates/audiacore-host/Cargo.toml"
+  host_src="crates/audiacore-host/src/lib.rs"
+
+  assert_only_dependency "$host_manifest" "audiacore-errors"
+
+  if grep -R -n -E 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-config|audiacore-core' crates/audiacore-host; then
+    fail "host contract contains native effects, runtime, config, or core coupling"
+  fi
+
+  grep -q 'pub struct FileReadAuthority' "$host_src" || fail "host lacks explicit file read authority"
+  grep -q 'pub struct FileWriteAuthority' "$host_src" || fail "host lacks explicit file write authority"
+  grep -q 'pub trait FileHost' "$host_src" || fail "host lacks file effect contract"
+  grep -q 'fn read_optional' "$host_src" || fail "file host lacks optional observation operation"
+  grep -q 'fn write' "$host_src" || fail "file host lacks write operation"
+  grep -q 'fn remove' "$host_src" || fail "file host lacks remove operation"
+  grep -q 'is_absolute()' "$host_src" || fail "file authority roots must be explicit absolute paths"
+  grep -q 'impl CodedError for FileAuthorityError' "$host_src" || fail "file authority validation lacks stable coded identity"
+
+  if grep -q 'fn read(' "$host_src"; then
+    fail "mandatory file read is not yet justified by a consumer"
+  fi
+  if grep -q 'allows(' "$host_src"; then
+    fail "host contract must not pretend lexical path checks prove safe containment"
+  fi
+  if grep -Eq 'File(Store|Service|Manager)|HostServices|HostRegistry|NetworkHost|SecretHost' "$host_src"; then
+    fail "host contains an unproven service/manager/facility abstraction"
+  fi
+
+  echo "FILE_HOST_CONTRACT_OK"
 fi
 
 echo "AUDIACORE_REVALIDATION_OK"
