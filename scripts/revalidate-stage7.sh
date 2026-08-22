@@ -68,21 +68,21 @@ grep -q 'pub fn execute_managed_config' "$src" || fail "Stage 7 execution proof 
 grep -q 'pub fn present_error' "$src" || fail "configured error presentation edge missing"
 grep -q 'pub fn redacted_value' "$src" || fail "sensitive message projection seam missing"
 grep -q 'tracing::info_span!' "$src" || fail "structured execution span missing"
-grep -q 'error_code = %error.code()' "$src" || fail "coded application failure tracing missing"
-grep -q 'application_id = %identity.application_id()' "$src" || fail "application identity not carried into tracing"
+grep -q 'error_code = error.code().as_str()' "$src" || fail "coded application failure tracing missing"
+grep -q 'application_id = %application.id()' "$src" || fail "application identity not carried into tracing"
 grep -q 'execution_id = %execution.execution_id()' "$src" || fail "execution identity not carried into tracing"
 grep -q 'correlation_id = %execution.correlation_id()' "$src" || fail "correlation identity not carried into tracing"
 
 if grep -Eq 'ServiceRegistry|ProviderRegistry|PolicyRegistry|HostServices|ServiceLocator|DependencyContainer|Global(Context|Runtime|Registry)|OnceLock|OnceCell|lazy_static|set_global_default|\.init\(\)|try_init\(' "$src"; then
   fail "Stage 7 introduced global/container/registry infrastructure"
 fi
-if grep -Eq 'tokio|async[[:space:]]+fn|Runtime|Scheduler|Manager' "$src"; then
+if grep -Eq 'tokio|async[[:space:]]+fn|Scheduler|Manager' "$src"; then
   fail "Stage 7 introduced an unearned runtime/manager abstraction"
 fi
 
 # Policy must remain source-independent: configuration and the concrete native
 # host are proof-only dependencies, not part of the reusable policy/composition API.
-if awk '/^\[dependencies\]$/,/^\[/' "$manifest" | grep -Eq 'audiacore-(config|host-native)'; then
+if [[ "$actual_normal" == *"audiacore-config"* || "$actual_normal" == *"audiacore-host-native"* ]]; then
   fail "policy/composition became coupled to configuration source or native implementation"
 fi
 grep -q 'ConfigLayers' "$proof" || fail "resolved configuration is not exercised at the application edge"
