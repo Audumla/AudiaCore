@@ -82,6 +82,7 @@ pub struct TimerSet {
     timers: BTreeMap<TimerId, Deadline>,
 }
 
+#[allow(clippy::new_without_default)]
 impl TimerSet {
     pub fn new() -> Self {
         Self {
