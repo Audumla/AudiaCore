@@ -75,10 +75,10 @@ jobs:
       - name: Install pinned Rust toolchain
         shell: bash
         run: rustup toolchain install 1.95.0 --profile minimal --no-self-update
-      - name: Generate lockfile with Cargo
+      - name: Generate lockfile diff with Cargo
         shell: bash
         run: |
           cargo check --workspace
-          echo 'LOCKFILE_BEGIN'
-          cat Cargo.lock
-          echo 'LOCKFILE_END'
+          echo 'LOCKFILE_DIFF_BEGIN'
+          git diff -- Cargo.lock
+          echo 'LOCKFILE_DIFF_END'
