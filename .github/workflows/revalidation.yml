@@ -67,7 +67,7 @@ jobs:
           command-arguments: advisories licenses sources
 
   lockfile-proof:
-    if: github.ref == 'refs/heads/revalidation/stage8-cleanup-proof'
+    if: github.ref == 'refs/heads/revalidation/stage8-cleanup-proof' || github.head_ref == 'revalidation/stage8-cleanup-proof'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
