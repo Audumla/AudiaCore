@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 audiacore-host = { path = "../audiacore-host" }
-cap-std.workspace = true
+cap-std = { workspace = true }
 
 [dev-dependencies]
 audiacore-sensitive = { path = "../audiacore-sensitive" }
