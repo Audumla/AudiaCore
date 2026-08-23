@@ -1,6 +1,6 @@
 # AudiaCore clean-room architecture revalidation
 
-Status: **ACTIVE**
+Status: **COMPLETE THROUGH STAGE 8**
 
 AudiaCore rebuilds the production Rust foundation from an empty repository so every layer is re-earned rather than copied. Prior AUDiaGentic work is requirements evidence only; code, dependencies, API shape, and boundaries are reassessed at each stage.
 
@@ -74,7 +74,7 @@ The clean-room rebuild may simplify this structure whenever a proposed boundary 
 | 6D | Managed-config capability | ACCEPTED |
 | corrective | Configured error presentation + template realignment | ACCEPTED |
 | 7 | Composition + policy + observability proof | ACCEPTED |
-| 8 | Full layer-lock audit | NEXT |
+| 8 | Full layer-lock audit | ACCEPTED |
 
 ## Accepted checkpoints
 
@@ -155,7 +155,7 @@ The portable implementation does not claim hostile-concurrent-filesystem race-pr
 
 ### Stage 5B — native process effects
 
-Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1d15a16`  
+Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1e3ad6`  
 Workflow run: `32554534159` (#154) — Ubuntu/macOS/Windows passed.
 
 Accepted an isolated `process.rs` implementation with its own `NativeProcessError`; canonical requested-program/allow-list comparison; canonical existing working-directory validation; direct native stdio mapping; deny-by-default ambient environment with explicit sensitive insertion; owned child stream transfer; `try_wait`, `wait`, and `kill`; and best-effort direct-child kill+wait on dropped live handles.
@@ -251,8 +251,8 @@ Workflow run: `32566520037` (#338) — Ubuntu/macOS/Windows passed with the comm
 Accepted a narrow `audiacore-application` edge proving the lower layers compose without a service container or runtime framework:
 
 - `Application<C>` carries an ordinary typed `ManagedConfigComposition<H>`; no service locator, component registry, provider registry, global context, or dependency container was introduced;
-- `ManagedConfigPolicy` is source-independent and contains behaviour inputs only. The proof builds the same policy both directly and from `ResolvedConfig<T>`; configuration is a proof/dev dependency rather than a reusable policy dependency;
-- file read/write authorities are supplied separately from policy, so configuration cannot grant effects;
+- `ManagedConfigRequest` is source-independent and contains capability inputs only. The proof builds the same request both directly and from `ResolvedConfig<T>`; configuration is a proof/dev dependency rather than a reusable request dependency;
+- file read/write authorities are supplied separately from the request, so configuration cannot grant effects;
 - the concrete `NativeFileHost` remains a proof/dev dependency rather than leaking into the reusable composition API;
 - a real native create is exercised and verified from the filesystem;
 - a real outside-authority operation is rejected, retains `IO-MCONFIG-001`, and is then rendered through the caller-owned managed-config error catalogue;
@@ -262,10 +262,26 @@ Accepted a narrow `audiacore-application` edge proving the lower layers compose 
 - `ErrorCategory::as_str()` was re-earned as stable category identity because Stage 7 has a concrete fallback/observability consumer; `ErrorCode` presentation and hard-coded canonical messages were not restored;
 - architecture gates enforce the direct-composition shape, dependency split, edge-owned observability, redaction/fallback tests, and real native failure-to-configured-presentation path.
 
-No global registry, runtime container, scheduler, manager layer, async runtime, configuration-source coupling in policy, or native-host coupling in the reusable application API was introduced.
+No global registry, runtime container, scheduler, manager layer, async runtime, configuration-source coupling in the reusable request, or native-host coupling in the reusable application API was introduced.
 
-## Stage 8 target
+## Stage 8 — full layer-lock audit
 
-Status: **NEXT**.
+Validated implementation head: `240200cfa34a78b01ba6503814ec1d936412f791`  
+Workflow run: `32624528904` (#436) — Ubuntu 24.04 / macOS 15 / Windows 2025 and the supply-chain gate passed.
 
-Run the full layer-lock audit. Stage 8 should primarily verify dependency direction, effect ownership, policy/authority separation, configured error ownership, template safety, event/trace/output separation, absence of speculative abstractions, documentation accuracy, and all-platform locked CI. It should add no product functionality unless the audit exposes a concrete missing contract.
+Stage 8 re-audited the full repository end to end rather than accepting an acyclic Cargo graph as sufficient. The resulting layer model is accepted for the current scope:
+
+- dependency direction and semantic vocabulary both flow inward/downward; zero-dependency core, stable error identity, and pure reconciliation remain free of effects and higher-layer concepts;
+- configuration resolves already-acquired data and retains provenance without acquiring sources or policy;
+- host crates define narrow effect ports plus explicit scope values; native adapters own operating-system mechanics;
+- `audiacore-managed-config` composes pure reconciliation with host ports and explicit file authority without acquiring native-host or configuration-source dependencies;
+- `audiacore-application` owns the proving composition, source-to-request conversion, configured presentation and operational tracing edge without a service locator, dependency container or global registry;
+- `cap-std` 4.0.3 is adopted only in `audiacore-host-native`; production filesystem target operations are directory-capability-relative and the public `FileHost` contract is unchanged;
+- public file authority values are explicit scope descriptors, not an in-process sandbox or an unforgeable capability by themselves. Filesystem containment is enforced at the native effect boundary by the acquired `cap_std::fs::Dir`. `ProcessAuthority` remains launch authorization only and does not sandbox descendants;
+- a parser-based direct-dependency admission gate requires third-party dependencies to be approved once in `[workspace.dependencies]` and inherited by members, while local path dependencies must resolve to declared workspace members;
+- a SHA-pinned `cargo-deny` gate rejects unapproved sources, checks licenses and advisories, and covers the supported target families;
+- the audit removed two unused internal edges (`audiacore-reconcile -> audiacore-errors` and the application proof's direct dev dependency on `audiacore-reconcile`) and retained Cargo's generated lockfile result;
+- the Stage 7 architecture assertion was updated to the accepted dependency graph rather than restoring an unused dependency;
+- no product functionality, provider framework, scheduler, async runtime, generic manager, service registry or speculative abstraction was added to satisfy the audit.
+
+External pattern validation supports these boundaries: ports-and-adapters/dependency-inversion guidance keeps infrastructure behind abstractions; capability-oriented filesystem APIs keep effects relative to acquired handles; controller/reconciliation patterns separate desired state from current state; `tracing` keeps subscriber installation at executable/application edges; and `cargo-deny` provides established advisory/license/source policy enforcement. `docs/architecture/layer-lock.md` records the enduring contract and reference links.
