@@ -21,10 +21,14 @@ A new third-party dependency is rejected unless all of the following are true:
 - its MSRV and Ubuntu/macOS/Windows support fit AudiaCore;
 - its default and enabled feature surface is proportionate;
 - its transitive dependency cost is understood;
+- its required transitive dependencies also satisfy the maintenance/security rule;
 - using it preserves the semantic layer boundary where it is introduced;
 - credible alternatives, including using the standard library or no dependency,
   have been considered;
 - the reason to use, defer, or reject it is recorded here.
+
+A healthy top-level crate does not excuse a stale required transitive dependency.
+The full enabled runtime/build graph is part of the dependency decision.
 
 Maintenance is judged in context. A mature stable crate does not need weekly
 releases, but there must be credible evidence that security and compatibility
@@ -98,28 +102,102 @@ or application policy.
 
 Accepted workspace line: `1.1.4`.
 
-### yaml_serde — KEEP, CONSTRAINED/WATCHED
+### yaml_serde — KEEP, NARROWLY SCOPED AND WATCHED
 
 Role: strict deserialization of caller-supplied owner-local `errors.yaml` files.
 
-Why: it is the YAML Organization's maintained successor line to deprecated
-`serde_yaml`, preserves mature Serde compatibility, and the current use is tiny,
-local and schema-constrained.
+Decision basis: this is not a choice of an old incumbent over newer Rust parsers.
+The alternatives were reviewed and a real `serde-saphyr` replacement proof was
+run. `yaml_serde` currently wins the combined maintenance, governance,
+proportionality and compatibility decision for this specific tiny catalogue.
 
-Important transitive: `libyaml-rs`, maintained under the YAML Organization, is a
-Rust translation of libyaml. This is a larger parser surface than the error
-catalogue semantics themselves require, so YAML must not silently expand into a
-general ingestion mechanism.
+Why keep it now:
 
-Alternatives considered:
+- the YAML Organization actively maintains the current `yaml-serde` line;
+- it carries the mature `serde_yaml` API/compatibility lineage without depending
+  on the deprecated original crate;
+- its required parser backend is `libyaml-rs`, a Rust translation maintained
+  under the YAML Organization, not a linked C libyaml dependency;
+- the enabled graph is relatively small;
+- required transitives checked during Stage 8 (`libyaml-rs`, `indexmap`, `itoa`,
+  `ryu`) have current stewardship/activity appropriate to their role;
+- our use is deliberately tiny: caller-supplied, schema-constrained error
+  presentation metadata with no source discovery or general YAML ingestion.
 
-- `serde_yaml`: REJECT — deprecated/unmaintained line.
-- `yaml-rust2`: REJECT for new adoption — basic-maintenance line rather than the
-  forward development path.
-- `serde-saphyr`: WATCH — actively developed, pure Rust, forbids unsafe code and
-  provides parsing budgets; currently newer and more maintainer-concentrated.
-  Re-evaluate it if AudiaCore begins accepting untrusted/large YAML or if its
-  stewardship matures further.
+The use of YAML remains constrained. It must not silently expand into a generic
+configuration/source format simply because a parser is already present.
+
+#### serde-saphyr — FUNCTIONALLY STRONGER, CURRENTLY BLOCKED
+
+`serde-saphyr` was treated as a serious replacement candidate. The published
+`1.1.0` line is pure Rust and `#![forbid(unsafe_code)]`, has direct typed Serde
+deserialization, duplicate-key policy, merge-key policy, structural/input
+budgets, alias replay limits, cross-platform CI, API-compatibility checks, Miri,
+fuzzing and strong YAML-suite coverage. For hostile or broadly sourced YAML its
+defensive parser controls are materially better than the API we currently use.
+
+An isolated AudiaCore proof aliased published `serde-saphyr 1.1.0` as the current
+`yaml_serde` crate name, leaving production source unchanged. On Ubuntu, macOS
+and Windows it resolved successfully and the Stage 7 end-to-end proof passed.
+The only direct source integration issue found was that its larger parser error
+would be better boxed in `ErrorCatalogueError`, which is a small and reasonable
+change rather than a behavioral incompatibility.
+
+It is not accepted today because its required graph contains:
+
+`serde-saphyr 1.1.0 -> granit-parser 1.1.0 -> arraydeque 0.5.1`.
+
+The upstream `arraydeque` repository was last pushed on 2024-01-14. That fails
+AudiaCore's rule for a newly introduced required transitive dependency. The
+other newly introduced proof transitives checked during the audit
+(`encoding_rs_io`, `encoding_rs`, `smallvec`, `num-traits`,
+`annotate-snippets`, `anstyle`, `unicode-width`, `autocfg`) all showed current
+2026 maintenance activity.
+
+`serde-saphyr` must be re-evaluated promptly if a published release removes or
+replaces the stale `arraydeque` path. Its stronger defensive parser model makes
+it the leading challenger, not a rejected design.
+
+The repository's current main advertised `1.2.0` during the review, but that
+version was not yet available from crates.io, so unreleased-main functionality
+was not counted as an adoptable dependency.
+
+#### noyalib — DEFER / WATCH
+
+`noyalib` is a credible pure-Rust YAML 1.2 project and is unusually serious for
+its age: published `0.0.27`, active development, thousands of tests, reported
+406/406 YAML-suite conformance, supply-chain/audit tooling and external
+contributions. Its minimal library graph is also intentionally measured by its
+maintainers.
+
+It is not selected for this foundation boundary today because the project was
+created in February 2026, remains on a rapidly changing `0.0.x` API line, has
+much broader ambitions/surface (lossless CST/editing, schema and ecosystem
+features) than our strict error-catalogue parser needs, and stewardship remains
+more concentrated than the YAML Organization alternative. Re-evaluate as its API
+and governance mature, especially if future Managed Content needs lossless YAML
+editing; that future capability is a different selection problem from the
+current error-catalogue parser.
+
+#### saneyaml — DEFER / WATCH
+
+`saneyaml 0.3.1` is pure Rust, forbids unsafe code, is Serde-first and explicitly
+targets safer YAML 1.2 configuration. It is also very young: the repository was
+created in June 2026 and currently has very little external adoption/governance
+evidence. Its core dependency set additionally includes `atomic-write-file`,
+which is not proportionate to our read-only error-catalogue parsing use.
+Re-evaluate only after substantially more release and stewardship history.
+
+#### Other YAML alternatives
+
+- `serde_yaml`: REJECT — original line is deprecated/unmaintained.
+- `serde_yml`: REJECT — deprecated/unmaintained and affected by its published
+  maintenance/soundness advisory history.
+- `serde_yaml_ng` and similar legacy forks: REJECT for this use where they retain
+  an unmaintained unsafe-libyaml dependency chain.
+- `yaml-rust2`: DEFER as a lower-level parser, not a Serde-integrated replacement;
+  wrapping it ourselves would rebuild typed-deserialization machinery already
+  available in maintained libraries.
 - changing `errors.yaml` to another format: DEFER — no architectural benefit is
   currently demonstrated that justifies format churn.
 
@@ -182,7 +260,7 @@ presentation consumer.
 ### cap-std — PROOF REQUIRED; STRONG ADOPTION CANDIDATE
 
 Bytecode Alliance maintained, capability-oriented, cross-platform, no default
-features, and directly addresses race-resistant path traversal/authority relative
+features, and directly addresses race-resistant path traversal/authority-relative
 filesystem access. Current `NativeFileHost` manually canonicalizes roots/parents,
 checks symlinks and then performs `std::fs` operations, which leaves us owning a
 security-sensitive problem already solved by a mature library.
@@ -202,23 +280,20 @@ Current candidate line reviewed: `4.0.3`.
 
 ## CI and supply-chain tooling
 
-### actions/checkout — KEEP, UPGRADE AND SHA-PIN
+### actions/checkout — KEEP, SHA-PINNED
 
-The checkout action is justified because correct PR/ref checkout and GitHub
-credentials are CI mechanics we should not reproduce. The previously used
-floating `actions/checkout@v4` is not acceptable under this policy and its Node
-runtime is deprecated on current runners.
+Correct PR/ref checkout is CI machinery we should not reproduce. The prior
+floating `actions/checkout@v4` also targeted a deprecated Node runtime.
 
-Accepted target: checkout v7.0.1 at immutable commit
-`3d3c42e5aac5ba805825da76410c181273ba90b1`, pending the CI-lock checkpoint.
+Accepted and validated on Ubuntu, macOS and Windows: checkout v7.0.1 at immutable
+commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
 
-### dtolnay/rust-toolchain — REMOVE
+### dtolnay/rust-toolchain — REMOVED
 
 The project already has `rust-toolchain.toml` pinned to Rust 1.95.0, minimal
-profile, rustfmt and clippy. GitHub hosted runners provide rustup. A direct
-`rustup toolchain install` step is smaller and removes a third-party action
-without losing semantics. Validate on all three runner platforms before the
-removal is accepted.
+profile, rustfmt and clippy. GitHub hosted runners provide rustup. The third-party
+action was removed and replaced with a direct `rustup toolchain install` command;
+that setup was validated on Ubuntu, macOS and Windows.
 
 ### cargo-deny — CANDIDATE SUPPLY-CHAIN GATE
 
@@ -235,13 +310,17 @@ Re-open this record when any of the following occurs:
 
 - a direct dependency or GitHub Action is added, removed or materially upgraded;
 - a current dependency becomes archived, superseded or materially inactive;
+- a required transitive dependency becomes stale or is replaced;
 - a security advisory affects an accepted line;
 - enabled features or transitive dependencies materially expand;
 - the MSRV/platform matrix changes;
 - custom AudiaCore code grows into functionality already provided by a healthy
   established library;
+- a published `serde-saphyr` release removes/replaces its stale `arraydeque`
+  transitive;
 - YAML/config/filesystem inputs become less trusted or substantially broader.
 
-Stage 8 is not dependency-locked until the workspace centralization, CI action
-pin/removal, current red semantic gate, and `cap-std` native-host decision have
-all been independently validated on the supported platforms.
+Stage 8 is not dependency-locked until the current semantic logging gate,
+`cap-std` native-host decision, mechanical direct-dependency allow-list and
+transitive advisory/license/source gate have all been independently validated on
+the supported platforms.
