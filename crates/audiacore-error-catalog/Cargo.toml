@@ -9,5 +9,5 @@ publish = false
 [dependencies]
 audiacore-errors = { path = "../audiacore-errors" }
 audiacore-template = { path = "../audiacore-template" }
-serde = { version = "1", features = ["derive"] }
-yaml_serde = "0.10"
+serde = { workspace = true, features = ["derive"] }
+yaml_serde = { workspace = true }

@@ -14,11 +14,11 @@ audiacore-host = { path = "../audiacore-host" }
 audiacore-managed-config = { path = "../audiacore-managed-config" }
 audiacore-sensitive = { path = "../audiacore-sensitive" }
 audiacore-template = { path = "../audiacore-template" }
-tracing = "0.1"
+tracing = { workspace = true }
 
 [dev-dependencies]
 audiacore-config = { path = "../audiacore-config" }
 audiacore-host-native = { path = "../audiacore-host-native" }
 audiacore-reconcile = { path = "../audiacore-reconcile" }
-serde = { version = "1", features = ["derive"] }
-tracing-subscriber = "0.3"
+serde = { workspace = true, features = ["derive"] }
+tracing-subscriber = { workspace = true }
