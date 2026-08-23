@@ -63,6 +63,14 @@ rustc --version
 cargo --version
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
+# Production libraries must never write unstructured diagnostics directly.
+# Test targets are intentionally excluded because native child-process probes
+# use stdout as the protocol surface being exercised.
+cargo clippy --workspace --lib --locked -- \
+  -D warnings \
+  -D clippy::print_stdout \
+  -D clippy::print_stderr \
+  -D clippy::dbg_macro
 cargo test --workspace --locked
 
 echo "REPOSITORY_DISCIPLINE_OK"
@@ -304,8 +312,6 @@ assert_no_match 'Parser|Watcher|Scheduler|Retry|Backoff|Cas|CAS|Manager|Registry
 echo "MANAGED_WHOLE_FILE_CAPABILITY_OK"
 
 # Global semantic lock: production code must not bypass the tracing/host/config boundaries.
-assert_no_match 'println!|eprintln!|dbg!' \
-  "production crates contain unstructured console diagnostics" crates/*/src
 assert_no_match 'set_global_default|tracing_subscriber::.*\.init\(|tracing_subscriber::.*try_init\(' \
   "library code owns a global tracing subscriber" crates/*/src
 assert_no_match 'ServiceRegistry|ProviderRegistry|PolicyRegistry|ServiceLocator|DependencyContainer|GlobalRuntime|GlobalContext' \
