@@ -19,6 +19,5 @@ tracing = { workspace = true }
 [dev-dependencies]
 audiacore-config = { path = "../audiacore-config" }
 audiacore-host-native = { path = "../audiacore-host-native" }
-audiacore-reconcile = { path = "../audiacore-reconcile" }
 serde = { workspace = true, features = ["derive"] }
 tracing-subscriber = { workspace = true }
