@@ -1,0 +1,21 @@
+[package]
+name = "audiacore-stage8-smoke-app"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+# Keep this demo as a standalone workspace so it does not become part of the
+# accepted AudiaCore foundation workspace or alter its lockfile.
+[workspace]
+
+[dependencies]
+audiacore-application = { path = "../../crates/audiacore-application" }
+audiacore-config = { path = "../../crates/audiacore-config" }
+audiacore-core = { path = "../../crates/audiacore-core" }
+audiacore-error-catalog = { path = "../../crates/audiacore-error-catalog" }
+audiacore-host = { path = "../../crates/audiacore-host" }
+audiacore-host-native = { path = "../../crates/audiacore-host-native" }
+audiacore-managed-config = { path = "../../crates/audiacore-managed-config" }
+serde = { version = "1.0.229", features = ["derive"] }
+tracing-subscriber = "0.3.23"
