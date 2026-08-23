@@ -1,4 +1,4 @@
-use std::{error::Error, fs};
+use std::{error::Error, fs, io};
 
 use audiacore_application::{
     ManagedConfigComposition, ManagedConfigRequest, execute_managed_config,
@@ -13,6 +13,8 @@ use audiacore_host_native::NativeFileHost;
 use audiacore_managed_config::{ManagedConfigApplyResult, ManagedConfigTarget};
 use serde::Deserialize;
 
+type DynError = Box<dyn Error + Send + Sync>;
+
 const DEMO_CONFIG: &str = r#"
 target = "hello.txt"
 message = "hello from AudiaCore"
@@ -24,7 +26,11 @@ struct DemoSettings {
     message: String,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn smoke_error(message: impl Into<String>) -> DynError {
+    Box::new(io::Error::other(message.into()))
+}
+
+fn main() -> Result<(), DynError> {
     tracing_subscriber::fmt()
         .with_target(false)
         .without_time()
@@ -43,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root)?;
 
-    let run = (|| -> Result<(), Box<dyn Error>> {
+    let run = (|| -> Result<(), DynError> {
         let request = ManagedConfigRequest::new(
             ManagedConfigTarget::new(&resolved.value().target),
             Some(resolved.value().message.as_bytes().to_vec()),
@@ -71,12 +77,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let first = execute_managed_config(&application, &execution, &request)?;
         if first != ManagedConfigApplyResult::Created {
-            return Err(format!("expected Created, got {first:?}").into());
+            return Err(smoke_error(format!("expected Created, got {first:?}")));
         }
 
         let second = execute_managed_config(&application, &execution, &request)?;
         if second != ManagedConfigApplyResult::Noop {
-            return Err(format!("expected Noop, got {second:?}").into());
+            return Err(smoke_error(format!("expected Noop, got {second:?}")));
         }
 
         let observed = application
@@ -86,10 +92,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 application.composition().read_authority(),
                 request.target().path(),
             )?
-            .ok_or("managed file was not observable after creation")?;
+            .ok_or_else(|| smoke_error("managed file was not observable after creation"))?;
 
         if observed != resolved.value().message.as_bytes() {
-            return Err("managed file contents did not match resolved settings".into());
+            return Err(smoke_error(
+                "managed file contents did not match resolved settings",
+            ));
         }
 
         println!(
