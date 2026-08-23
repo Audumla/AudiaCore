@@ -11,22 +11,21 @@ pub use process::{NativeProcess, NativeProcessError, NativeProcessHost};
 
 use std::{
     error::Error,
-    fmt, fs, io,
-    path::{Path, PathBuf},
+    fmt, io,
+    path::{Component, Path, PathBuf},
 };
 
 use audiacore_host::{FileHost, FileReadAuthority, FileWriteAuthority};
+use cap_std::{ambient_authority, fs::Dir};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NativeFileHost;
 
 #[derive(Debug)]
 pub enum NativeHostError {
-    CanonicalizeAuthorityRoot { path: PathBuf, source: io::Error },
+    OpenAuthorityRoot { path: PathBuf, source: io::Error },
     AuthorityRootNotDirectory(PathBuf),
     InspectTarget { path: PathBuf, source: io::Error },
-    CanonicalizeTarget { path: PathBuf, source: io::Error },
-    CanonicalizeParent { path: PathBuf, source: io::Error },
     OutsideAuthority { root: PathBuf, path: PathBuf },
     MissingFileName(PathBuf),
     SymbolicLinkWriteTarget(PathBuf),
@@ -39,19 +38,13 @@ pub enum NativeHostError {
 impl fmt::Display for NativeHostError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CanonicalizeAuthorityRoot { path, .. } => {
-                write!(f, "cannot canonicalize file authority root {path:?}")
+            Self::OpenAuthorityRoot { path, .. } => {
+                write!(f, "cannot open file authority root {path:?}")
             }
             Self::AuthorityRootNotDirectory(path) => {
                 write!(f, "file authority root is not a directory: {path:?}")
             }
             Self::InspectTarget { path, .. } => write!(f, "cannot inspect file target {path:?}"),
-            Self::CanonicalizeTarget { path, .. } => {
-                write!(f, "cannot canonicalize file target {path:?}")
-            }
-            Self::CanonicalizeParent { path, .. } => {
-                write!(f, "cannot canonicalize file target parent {path:?}")
-            }
             Self::OutsideAuthority { root, path } => {
                 write!(f, "file target {path:?} is outside authority root {root:?}")
             }
@@ -72,10 +65,8 @@ impl fmt::Display for NativeHostError {
 impl Error for NativeHostError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::CanonicalizeAuthorityRoot { source, .. }
+            Self::OpenAuthorityRoot { source, .. }
             | Self::InspectTarget { source, .. }
-            | Self::CanonicalizeTarget { source, .. }
-            | Self::CanonicalizeParent { source, .. }
             | Self::ReadFile { source, .. }
             | Self::WriteFile { source, .. }
             | Self::RemoveFile { source, .. } => Some(source),
@@ -88,103 +79,101 @@ impl Error for NativeHostError {
     }
 }
 
-fn canonical_authority_root(root: &Path) -> Result<PathBuf, NativeHostError> {
-    let canonical =
-        fs::canonicalize(root).map_err(|source| NativeHostError::CanonicalizeAuthorityRoot {
+fn open_authority_root(root: &Path) -> Result<Dir, NativeHostError> {
+    match Dir::open_ambient_dir(root, ambient_authority()) {
+        Ok(dir) => Ok(dir),
+        Err(source) if source.kind() == io::ErrorKind::NotADirectory => {
+            Err(NativeHostError::AuthorityRootNotDirectory(root.to_path_buf()))
+        }
+        Err(source) => Err(NativeHostError::OpenAuthorityRoot {
             path: root.to_path_buf(),
-            source,
-        })?;
-    if !canonical.is_dir() {
-        return Err(NativeHostError::AuthorityRootNotDirectory(canonical));
-    }
-    Ok(canonical)
-}
-
-fn requested_path(root: &Path, path: &Path) -> PathBuf {
-    if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        root.join(path)
-    }
-}
-
-fn ensure_inside(root: &Path, path: &Path) -> Result<(), NativeHostError> {
-    if path == root || path.starts_with(root) {
-        Ok(())
-    } else {
-        Err(NativeHostError::OutsideAuthority {
-            root: root.to_path_buf(),
-            path: path.to_path_buf(),
-        })
-    }
-}
-
-fn authorize_optional_read(
-    authority: &FileReadAuthority,
-    path: &Path,
-) -> Result<Option<PathBuf>, NativeHostError> {
-    let root = canonical_authority_root(authority.root())?;
-    let requested = requested_path(authority.root(), path);
-
-    match fs::symlink_metadata(&requested) {
-        Ok(_) => {
-            let canonical = fs::canonicalize(&requested).map_err(|source| {
-                NativeHostError::CanonicalizeTarget {
-                    path: requested.clone(),
-                    source,
-                }
-            })?;
-            ensure_inside(&root, &canonical)?;
-            Ok(Some(canonical))
-        }
-        Err(source) if source.kind() == io::ErrorKind::NotFound => {
-            let parent = requested
-                .parent()
-                .ok_or_else(|| NativeHostError::MissingFileName(requested.clone()))?;
-            let canonical_parent =
-                fs::canonicalize(parent).map_err(|source| NativeHostError::CanonicalizeParent {
-                    path: parent.to_path_buf(),
-                    source,
-                })?;
-            ensure_inside(&root, &canonical_parent)?;
-            Ok(None)
-        }
-        Err(source) => Err(NativeHostError::InspectTarget {
-            path: requested,
             source,
         }),
     }
 }
 
-fn authorize_write(
-    authority: &FileWriteAuthority,
-    path: &Path,
-) -> Result<PathBuf, NativeHostError> {
-    let root = canonical_authority_root(authority.root())?;
-    let requested = requested_path(authority.root(), path);
-    let file_name = requested
-        .file_name()
-        .ok_or_else(|| NativeHostError::MissingFileName(requested.clone()))?;
-    let parent = requested
-        .parent()
-        .ok_or_else(|| NativeHostError::MissingFileName(requested.clone()))?;
-    let canonical_parent =
-        fs::canonicalize(parent).map_err(|source| NativeHostError::CanonicalizeParent {
-            path: parent.to_path_buf(),
-            source,
-        })?;
-    ensure_inside(&root, &canonical_parent)?;
+fn outside_authority(root: &Path, path: &Path) -> NativeHostError {
+    NativeHostError::OutsideAuthority {
+        root: root.to_path_buf(),
+        path: path.to_path_buf(),
+    }
+}
 
-    let target = canonical_parent.join(file_name);
-    match fs::symlink_metadata(&target) {
-        Ok(metadata) if metadata.file_type().is_symlink() => {
-            Err(NativeHostError::SymbolicLinkWriteTarget(target))
+/// Convert caller path syntax into a normalized path relative to the granted
+/// root. This is a semantic pre-check only; `cap_std::fs::Dir` remains the
+/// effect-time containment boundary for every filesystem operation.
+fn relative_target(root: &Path, path: &Path) -> Result<PathBuf, NativeHostError> {
+    let candidate = if path.is_absolute() {
+        path.strip_prefix(root)
+            .map_err(|_| outside_authority(root, path))?
+    } else {
+        path
+    };
+
+    let mut relative = PathBuf::new();
+    for component in candidate.components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(part) => relative.push(part),
+            Component::ParentDir => {
+                if !relative.pop() {
+                    return Err(outside_authority(root, path));
+                }
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(outside_authority(root, path));
+            }
         }
-        Ok(metadata) if metadata.is_dir() => Err(NativeHostError::DirectoryWriteTarget(target)),
-        Ok(_) => Ok(target),
-        Err(source) if source.kind() == io::ErrorKind::NotFound => Ok(target),
+    }
+    Ok(relative)
+}
+
+fn display_target(root: &Path, relative: &Path) -> PathBuf {
+    root.join(relative)
+}
+
+fn ensure_parent_directory(
+    dir: &Dir,
+    relative: &Path,
+    display: &Path,
+) -> Result<(), NativeHostError> {
+    let parent = relative
+        .parent()
+        .ok_or_else(|| NativeHostError::MissingFileName(display.to_path_buf()))?;
+    if parent.as_os_str().is_empty() {
+        return Ok(());
+    }
+
+    dir.open_dir(parent)
+        .map(|_| ())
+        .map_err(|source| NativeHostError::InspectTarget {
+            path: display.to_path_buf(),
+            source,
+        })
+}
+
+fn inspect_write_target(
+    dir: &Dir,
+    relative: &Path,
+    display: &Path,
+) -> Result<(), NativeHostError> {
+    if relative.file_name().is_none() {
+        return Err(NativeHostError::MissingFileName(display.to_path_buf()));
+    }
+
+    match dir.symlink_metadata(relative) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(
+            NativeHostError::SymbolicLinkWriteTarget(display.to_path_buf()),
+        ),
+        Ok(metadata) if metadata.is_dir() => {
+            Err(NativeHostError::DirectoryWriteTarget(display.to_path_buf()))
+        }
+        Ok(_) => Ok(()),
+        Err(source) if source.kind() == io::ErrorKind::NotFound => {
+            ensure_parent_directory(dir, relative, display)
+        }
         Err(source) => Err(NativeHostError::InspectTarget {
-            path: target,
+            path: display.to_path_buf(),
             source,
         }),
     }
@@ -198,12 +187,27 @@ impl FileHost for NativeFileHost {
         authority: &FileReadAuthority,
         path: &Path,
     ) -> Result<Option<Vec<u8>>, Self::Error> {
-        let Some(path) = authorize_optional_read(authority, path)? else {
-            return Ok(None);
-        };
-        fs::read(&path)
-            .map(Some)
-            .map_err(|source| NativeHostError::ReadFile { path, source })
+        let dir = open_authority_root(authority.root())?;
+        let relative = relative_target(authority.root(), path)?;
+        let display = display_target(authority.root(), &relative);
+
+        match dir.symlink_metadata(&relative) {
+            Ok(_) => dir
+                .read(&relative)
+                .map(Some)
+                .map_err(|source| NativeHostError::ReadFile {
+                    path: display,
+                    source,
+                }),
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {
+                ensure_parent_directory(&dir, &relative, &display)?;
+                Ok(None)
+            }
+            Err(source) => Err(NativeHostError::InspectTarget {
+                path: display,
+                source,
+            }),
+        }
     }
 
     fn write(
@@ -212,21 +216,35 @@ impl FileHost for NativeFileHost {
         path: &Path,
         bytes: &[u8],
     ) -> Result<(), Self::Error> {
-        let path = authorize_write(authority, path)?;
-        file_store::write_atomic(&path, bytes)
-            .map_err(|source| NativeHostError::WriteFile { path, source })
+        let dir = open_authority_root(authority.root())?;
+        let relative = relative_target(authority.root(), path)?;
+        let display = display_target(authority.root(), &relative);
+        inspect_write_target(&dir, &relative, &display)?;
+        file_store::write_atomic(&dir, &relative, bytes).map_err(|source| {
+            NativeHostError::WriteFile {
+                path: display,
+                source,
+            }
+        })
     }
 
     fn remove(&self, authority: &FileWriteAuthority, path: &Path) -> Result<(), Self::Error> {
-        let path = authorize_write(authority, path)?;
-        fs::remove_file(&path).map_err(|source| NativeHostError::RemoveFile { path, source })
+        let dir = open_authority_root(authority.root())?;
+        let relative = relative_target(authority.root(), path)?;
+        let display = display_target(authority.root(), &relative);
+        inspect_write_target(&dir, &relative, &display)?;
+        dir.remove_file(&relative)
+            .map_err(|source| NativeHostError::RemoveFile {
+                path: display,
+                source,
+            })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
+    use std::{fs, sync::Mutex};
 
     static TEST_LOCK: Mutex<()> = Mutex::new(());
 
@@ -258,6 +276,26 @@ mod tests {
         );
         host.remove(&write, relative).unwrap();
         assert_eq!(host.read_optional(&read, relative).unwrap(), None);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn absolute_target_beneath_root_uses_the_same_authority() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        let root = test_root("absolute");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let target = root.join("state.bin");
+
+        let host = NativeFileHost;
+        let read = FileReadAuthority::new(&root).unwrap();
+        let write = FileWriteAuthority::new(&root).unwrap();
+        host.write(&write, &target, b"absolute").unwrap();
+        assert_eq!(
+            host.read_optional(&read, &target).unwrap(),
+            Some(b"absolute".to_vec())
+        );
 
         fs::remove_dir_all(root).unwrap();
     }
@@ -299,6 +337,24 @@ mod tests {
     }
 
     #[test]
+    fn missing_leaf_requires_a_valid_existing_parent() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        let root = test_root("missing-parent");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+
+        let host = NativeFileHost;
+        let read = FileReadAuthority::new(&root).unwrap();
+        assert!(matches!(
+            host.read_optional(&read, Path::new("missing/state.bin"))
+                .unwrap_err(),
+            NativeHostError::InspectTarget { .. }
+        ));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn authority_root_must_exist_as_a_directory_at_effect_time() {
         let _guard = TEST_LOCK.lock().unwrap();
         let root = test_root("root-file");
@@ -337,14 +393,8 @@ mod tests {
         let write = FileWriteAuthority::new(&root).unwrap();
         let escaped = root.join("escape").join("state.bin");
 
-        assert!(matches!(
-            host.read_optional(&read, &escaped).unwrap_err(),
-            NativeHostError::OutsideAuthority { .. }
-        ));
-        assert!(matches!(
-            host.write(&write, &escaped, b"blocked").unwrap_err(),
-            NativeHostError::OutsideAuthority { .. }
-        ));
+        assert!(host.read_optional(&read, &escaped).is_err());
+        assert!(host.write(&write, &escaped, b"blocked").is_err());
         assert_eq!(fs::read(outside.join("state.bin")).unwrap(), b"outside");
 
         fs::remove_dir_all(root).unwrap();
