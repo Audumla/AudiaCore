@@ -1,6 +1,6 @@
 # AudiaCore layer lock
 
-Status: Stage 8 architecture contract under validation.
+Status: Stage 8 architecture contract **ACCEPTED**.
 
 This document defines semantic ownership as well as Cargo dependency direction.
 A dependency graph can be acyclic and still be architecturally wrong when a
@@ -60,6 +60,16 @@ The canonical effect flow is:
 Policy decides what behaviour is desired. Authority independently determines
 which effects are permitted. Configuration and policy cannot mint authority.
 
+The public `FileReadAuthority`, `FileWriteAuthority`, and `ProcessAuthority`
+values are explicit scope descriptors passed to host contracts. They make the
+grant visible in APIs and keep policy/configuration separate from permission,
+but they are not by themselves an unforgeable in-process security boundary.
+For filesystem effects, containment is enforced at the native boundary after
+`audiacore-host-native` acquires a `cap_std::fs::Dir`; all target operations are
+then relative to that directory capability. `ProcessAuthority` is an explicit
+launch allow-list only and is not a sandbox for the launched process or its
+descendants.
+
 Host contracts know effect mechanics only. They do not know application policy,
 recipes, package-manager policy, managed-content ownership, or provider/domain
 concepts. Native adapters know operating-system mechanics only.
@@ -71,9 +81,9 @@ concepts. Native adapters know operating-system mechanics only.
     desired + observed -> Noop | Create | Replace | Delete
 
 It owns no resource identifiers, owner identifiers, authority, path semantics,
-host access, application policy, telemetry, or error presentation. Resource
-identity and ownership are semantics of the capability that uses reconciliation,
-not of reconciliation itself.
+host access, application policy, telemetry, error identity, or error
+presentation. Resource identity and ownership are semantics of the capability
+that uses reconciliation, not of reconciliation itself.
 
 ## Current whole-file capability
 
@@ -269,10 +279,28 @@ during this audit:
 - `toml`: actively maintained under `toml-rs`;
 - `tracing` / `tracing-subscriber`: actively maintained under `tokio-rs`;
 - `yaml_serde`: actively maintained by the YAML organization as the supported
-  successor/fork of the unmaintained `serde_yaml`.
+  successor/fork of the unmaintained `serde_yaml`;
+- `cap-std`: actively maintained in the Bytecode Alliance capability-oriented
+  Rust ecosystem, supports the required Linux/macOS/Windows families, and is
+  restricted to the native-host adapter where its handle-relative filesystem
+  model is required.
 
 No known direct dependency is intentionally retained after being identified as
 dead or superseded.
+
+## Dependency admission and transitive governance
+
+Direct third-party dependencies are approved once in root
+`[workspace.dependencies]`; member crates inherit them with `workspace = true`.
+The parser-based admission check covers normal, dev, build, and target-specific
+dependency tables. Local path dependencies must resolve to declared workspace
+members. This makes a dependency addition an explicit architectural review
+rather than an incidental member-manifest edit.
+
+The committed `deny.toml` and SHA-pinned `cargo-deny` CI action enforce the
+transitive graph independently of the direct-admission rule. The accepted gate
+checks known advisories, permits only the reviewed license set, rejects unknown
+registries, and rejects git dependencies unless explicitly approved.
 
 ## Semantic dependency lock
 
@@ -282,7 +310,7 @@ knowledge.
 | Layer | Must not know |
 | --- | --- |
 | Core | files, packages, recipes, providers, config sources, logging frameworks |
-| Reconcile | owners, resource IDs, paths, formats, authority, hosts, policy, telemetry |
+| Reconcile | errors, owners, resource IDs, paths, formats, authority, hosts, policy, telemetry |
 | Config resolution | application behaviour, authority, mutation, native effects |
 | Host contracts | application policy, recipes, managed-content ownership, config sources |
 | Native host | application/provider/recipe/policy semantics |
@@ -312,14 +340,42 @@ system grows.
 The architecture is intentionally aligned with established patterns rather than
 being treated as novel:
 
-- rust-analyzer: semantic/core layers isolated from filesystem/build-system/LSP
-  edge knowledge;
-- capability-oriented security and `cap-std`: authority is represented by
-  explicit values rather than ambient global access;
-- Kubernetes controllers: observed state is reconciled toward desired state;
-- Serde and maintained format crates: established parsing/serialization;
-- `tracing` and OpenTelemetry semantic-convention principles: structured,
-  consistently named operational telemetry.
+- AWS Prescriptive Guidance on hexagonal architecture describes ports as
+  technology-agnostic abstractions and adapters as infrastructure-specific
+  implementations, with the domain/application logic isolated from those
+  implementation details: https://docs.aws.amazon.com/prescriptive-guidance/latest/hexagonal-architectures/overview.html
+- Microsoft's Dependency Inversion and Explicit Dependencies principles require
+  implementation details to depend on abstractions and collaborators to be
+  passed explicitly instead of hidden behind global/infrastructure state:
+  https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/architectural-principles
+- `cap-std` documents `Dir` as a capability-based filesystem interface whose
+  operations are relative to an acquired directory handle rather than a global
+  filesystem namespace: https://docs.rs/cap-std/latest/cap_std/fs/
+- Kubernetes controllers model the same desired-state/current-state separation
+  used by the pure reconciliation layer: https://kubernetes.io/docs/concepts/architecture/controller/
+- `tracing` documents the library/executable split used here: libraries emit
+  instrumentation through `tracing`; subscriber installation belongs to the
+  executable/application edge: https://docs.rs/tracing/latest/tracing/
+- `cargo-deny` provides established dependency-graph checks for advisories,
+  licenses, and trusted sources: https://embarkstudios.github.io/cargo-deny/checks/
 
 External references confirm direction; they do not justify importing a stale or
 unnecessarily broad dependency.
+
+## Stage 8 acceptance
+
+Validated implementation head: `240200cfa34a78b01ba6503814ec1d936412f791`  
+Workflow run: `32624528904` (#436).
+
+The full audit passed Ubuntu 24.04, macOS 15, Windows 2025, direct dependency
+admission, the Stage 7 native end-to-end proof, and transitive supply-chain
+policy. It found no layer inversion requiring production redesign. The only
+post-cleanup failure was a stale Stage 7 expected-dependency assertion after an
+unused dev edge was removed; the assertion was corrected to the accepted graph
+rather than restoring the dependency.
+
+The accepted architecture therefore remains deliberately small: effect-free
+core/foundation semantics, explicit host ports and scopes, native effect
+adapters, narrow capabilities, and an application composition/presentation/
+observability edge. Future capabilities must earn their own boundaries and may
+not weaken this lock merely for convenience.
