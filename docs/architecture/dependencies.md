@@ -229,6 +229,33 @@ host/capability layers.
 
 Accepted workspace line: `0.3.23`.
 
+### cap-std — ADOPTED, NATIVE HOST ONLY
+
+Role: capability-relative filesystem effects inside `audiacore-host-native`.
+
+Why: Bytecode Alliance maintained, capability-oriented, cross-platform, no
+default features, and directly addresses race-resistant path traversal and
+authority-relative filesystem access. It replaces AudiaCore's custom native path
+canonicalization/containment mechanics without moving capability types into the
+public `FileHost` contract or higher layers.
+
+Alternatives considered included `openat` (less portable/multi-component),
+`pathrs` (Linux-specific), Unix-fd-oriented approaches, and retaining custom
+canonicalization. None has a better fit for the required Ubuntu/macOS/Windows
+adapter.
+
+Validation: the production adoption checkpoint `d64e9f98d376230608806a5eb2e604626efa514a`
+preserves authority separation, capability-relative read/write/remove, symlink
+escape prevention, atomic replacement, temporary-file collision handling, and
+Stage 7 behavior. GitHub Actions run `32622399244` passed the immutable
+foundation/capability revalidation and Stage 7 proof on Ubuntu 24.04, macOS 15,
+and Windows 2025.
+
+Boundary: `cap-std` is an implementation dependency of `audiacore-host-native`
+only. It must not leak into `audiacore-host`, application capabilities, or policy.
+
+Accepted workspace line: `4.0.3` with default features disabled.
+
 ## Evaluated but not current direct dependencies
 
 ### Figment — REJECT
@@ -256,27 +283,6 @@ only if hand-written conversion/display boilerplate becomes a demonstrated cost.
 Useful for rich CLI diagnostics, not a replacement for AudiaCore error identity
 or configured message catalogues. Introduce only with a real CLI/application
 presentation consumer.
-
-### cap-std — PROOF REQUIRED; STRONG ADOPTION CANDIDATE
-
-Bytecode Alliance maintained, capability-oriented, cross-platform, no default
-features, and directly addresses race-resistant path traversal/authority-relative
-filesystem access. Current `NativeFileHost` manually canonicalizes roots/parents,
-checks symlinks and then performs `std::fs` operations, which leaves us owning a
-security-sensitive problem already solved by a mature library.
-
-Alternatives considered include `openat` (less portable/multi-component),
-`pathrs` (Linux-specific), Unix-fd-oriented approaches, and retaining our custom
-canonicalization. None currently has a better fit for the required
-Ubuntu/macOS/Windows adapter.
-
-Decision: do not add it as paperwork. Run a separate native-host proof showing
-that `FileHost` contracts, authority separation, symlink escape prevention,
-atomic replacement and all-platform behavior are preserved. If the proof passes,
-prefer `cap-std` internally in `audiacore-host-native`; it must not leak into the
-host contract or application layers.
-
-Current candidate line reviewed: `4.0.3`.
 
 ## CI and supply-chain tooling
 
