@@ -37,6 +37,9 @@ jobs:
     steps:
       # actions/checkout v7.0.1; immutable SHA required by dependency policy.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Enforce direct dependency admission
+        shell: bash
+        run: python scripts/check-dependency-admission.py
       - name: Install pinned Rust toolchain
         shell: bash
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy --no-self-update
