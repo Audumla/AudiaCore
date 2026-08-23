@@ -10,4 +10,4 @@ publish = false
 audiacore-errors = { path = "../audiacore-errors" }
 audiacore-template = { path = "../audiacore-template" }
 serde = { workspace = true, features = ["derive"] }
-yaml_serde = { workspace = true }
+serde-saphyr = { workspace = true }
