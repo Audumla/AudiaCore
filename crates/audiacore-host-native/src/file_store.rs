@@ -95,8 +95,14 @@ fn sync_parent_directory(dir: &Dir, path: &Path) -> io::Result<()> {
         dir.open_dir(parent)
             .map_err(|source| io_error("open parent directory", parent, source))?
     };
+
+    // cap-std may represent Dir with an O_PATH descriptor on Linux. O_PATH
+    // descriptors are suitable capability anchors but cannot be fsync'd.
+    // Re-open `.` through the already-resolved directory capability to obtain
+    // a normal readable directory handle before syncing the rename metadata.
     parent_dir
-        .into_std_file()
+        .open(".")
+        .map_err(|source| io_error("open parent directory for sync", parent, source))?
         .sync_all()
         .map_err(|source| io_error("sync parent directory", parent, source))
 }
@@ -151,6 +157,22 @@ mod tests {
         write_atomic(&dir, path, b"one").unwrap();
         write_atomic(&dir, path, b"two").unwrap();
         assert_eq!(fs::read(root.join(path)).unwrap(), b"two");
+
+        drop(dir);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn atomic_write_handles_nested_parent_directory() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        let root = test_root("nested");
+        let path = Path::new("nested/state.bin");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("nested")).unwrap();
+        let dir = open_root(&root);
+
+        write_atomic(&dir, path, b"nested").unwrap();
+        assert_eq!(fs::read(root.join(path)).unwrap(), b"nested");
 
         drop(dir);
         fs::remove_dir_all(root).unwrap();
