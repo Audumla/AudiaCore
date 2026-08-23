@@ -73,7 +73,7 @@ The clean-room rebuild may simplify this structure whenever a proposed boundary 
 | 6C | Time capability | ACCEPTED |
 | 6D | Managed-config capability | ACCEPTED |
 | corrective | Configured error presentation + template realignment | ACCEPTED |
-| 7 | Composition + policy + observability proof | ACCEPTED |
+| 7 | Composition + request + observability proof | ACCEPTED |
 | 8 | Full layer-lock audit | ACCEPTED |
 
 ## Accepted checkpoints
@@ -223,9 +223,9 @@ Capabilities are revalidated independently. They may use lower semantic contract
 Accepted head: `1b99cf2d6558844b10583d130b30b9200aa41b8c`  
 Workflow run: `32556604138` (#236) — Ubuntu/macOS/Windows passed.
 
-Accepted optional observation through `FileHost`, pure desired/observed reconciliation, explicit owner binding, create/replace/delete/noop application through caller-supplied `FileWriteAuthority`, and stable typed boundary errors. Host failures retain their typed source.
+Accepted optional observation through `FileHost`, pure desired/observed reconciliation, create/replace/delete/noop application through caller-supplied `FileWriteAuthority`, and stable typed boundary errors. Whole-file lifecycle responsibility remains an explicit caller precondition rather than an ownership claim encoded by this capability. Host failures retain their typed source.
 
-Parsing, watching, retries, scheduling, generic receipts/effect IDs, multi-writer coordination, and CAS behaviour remain deliberately outside the capability.
+Parsing, watching, retries, scheduling, generic receipts/effect IDs, ownership proof, multi-writer coordination, and CAS behaviour remain deliberately outside the capability.
 
 ### Cross-cutting correction — configured errors + template contract
 
@@ -243,7 +243,7 @@ This correction reopened only the cross-cutting presentation assumptions, not th
 - added architecture enforcement that production stable codes and owner-local configured definitions match exactly;
 - retained bootstrap-safe non-catalogue failures for catalogue loading/rendering infrastructure.
 
-## Stage 7 — composition + policy + observability proof
+## Stage 7 — composition + request + observability proof
 
 Accepted head: `9ee04ce0d57aee0a00707765e894f245efaf3941`  
 Workflow run: `32566520037` (#338) — Ubuntu/macOS/Windows passed with the committed lockfile and immutable CI.
@@ -275,7 +275,7 @@ Stage 8 re-audited the full repository end to end rather than accepting an acycl
 - configuration resolves already-acquired data and retains provenance without acquiring sources or policy;
 - host crates define narrow effect ports plus explicit scope values; native adapters own operating-system mechanics;
 - `audiacore-managed-config` composes pure reconciliation with host ports and explicit file authority without acquiring native-host or configuration-source dependencies;
-- `audiacore-application` owns the proving composition, source-to-request conversion, configured presentation and operational tracing edge without a service locator, dependency container or global registry;
+- the application-edge proof demonstrates source-to-request conversion while `audiacore-application` itself owns typed composition, configured presentation and operational tracing without a service locator, dependency container or global registry;
 - `cap-std` 4.0.3 is adopted only in `audiacore-host-native`; production filesystem target operations are directory-capability-relative and the public `FileHost` contract is unchanged;
 - public file authority values are explicit scope descriptors, not an in-process sandbox or an unforgeable capability by themselves. Filesystem containment is enforced at the native effect boundary by the acquired `cap_std::fs::Dir`. `ProcessAuthority` remains launch authorization only and does not sandbox descendants;
 - a parser-based direct-dependency admission gate requires third-party dependencies to be approved once in `[workspace.dependencies]` and inherited by members, while local path dependencies must resolve to declared workspace members;
