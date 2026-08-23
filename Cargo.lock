@@ -19,7 +19,6 @@ dependencies = [
  "audiacore-host",
  "audiacore-host-native",
  "audiacore-managed-config",
- "audiacore-reconcile",
  "audiacore-sensitive",
  "audiacore-template",
  "serde",
@@ -91,9 +90,6 @@ dependencies = [
 [[package]]
 name = "audiacore-reconcile"
 version = "0.1.0"
-dependencies = [
- "audiacore-errors",
-]
 
 [[package]]
 name = "audiacore-sensitive"
