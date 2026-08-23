@@ -62,6 +62,7 @@ fn capability_relative_atomic_create_replace_read_and_remove_work() {
         io::ErrorKind::NotFound
     );
 
+    drop(dir);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -88,6 +89,7 @@ fn parent_component_cannot_escape_directory_capability() {
     assert!(dir.open_with(&escaped, &options).is_err());
     assert_eq!(fs::read(outside.join("state.bin")).unwrap(), b"outside");
 
+    drop(dir);
     fs::remove_dir_all(root).unwrap();
     fs::remove_dir_all(outside).unwrap();
 }
@@ -116,6 +118,7 @@ fn directory_symlink_cannot_escape_directory_capability() {
     assert_eq!(fs::read(outside.join("state.bin")).unwrap(), b"outside");
     assert!(!outside.join("new.bin").exists());
 
+    drop(dir);
     fs::remove_dir_all(root).unwrap();
     fs::remove_dir_all(outside).unwrap();
 }
@@ -142,6 +145,7 @@ fn leaf_symlink_is_visible_without_following_for_write_policy() {
     assert!(dir.read("state.bin").is_err());
     assert_eq!(fs::read(outside_file).unwrap(), b"outside");
 
+    drop(dir);
     fs::remove_dir_all(root).unwrap();
     fs::remove_dir_all(outside).unwrap();
 }
