@@ -51,6 +51,14 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         shell: bash
         run: git diff -- Cargo.lock
+      - name: Expose reviewed cap-std proof lockfile
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          echo 'AUDIACORE_LOCKFILE_BASE64_BEGIN'
+          base64 -w0 Cargo.lock
+          echo
+          echo 'AUDIACORE_LOCKFILE_BASE64_END'
       - name: Revalidate foundation and capabilities
         shell: bash
         run: bash scripts/revalidate.sh
