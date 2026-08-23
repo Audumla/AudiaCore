@@ -82,9 +82,9 @@ impl Error for NativeHostError {
 fn open_authority_root(root: &Path) -> Result<Dir, NativeHostError> {
     match Dir::open_ambient_dir(root, ambient_authority()) {
         Ok(dir) => Ok(dir),
-        Err(source) if source.kind() == io::ErrorKind::NotADirectory => {
-            Err(NativeHostError::AuthorityRootNotDirectory(root.to_path_buf()))
-        }
+        Err(source) if source.kind() == io::ErrorKind::NotADirectory => Err(
+            NativeHostError::AuthorityRootNotDirectory(root.to_path_buf()),
+        ),
         Err(source) => Err(NativeHostError::OpenAuthorityRoot {
             path: root.to_path_buf(),
             source,
@@ -152,11 +152,7 @@ fn ensure_parent_directory(
         })
 }
 
-fn inspect_write_target(
-    dir: &Dir,
-    relative: &Path,
-    display: &Path,
-) -> Result<(), NativeHostError> {
+fn inspect_write_target(dir: &Dir, relative: &Path, display: &Path) -> Result<(), NativeHostError> {
     if relative.file_name().is_none() {
         return Err(NativeHostError::MissingFileName(display.to_path_buf()));
     }
