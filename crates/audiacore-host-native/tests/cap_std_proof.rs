@@ -57,7 +57,10 @@ fn capability_relative_atomic_create_replace_read_and_remove_work() {
     assert_eq!(dir.read("state.bin").unwrap(), b"two");
 
     dir.remove_file("state.bin").unwrap();
-    assert_eq!(dir.read("state.bin").unwrap_err().kind(), io::ErrorKind::NotFound);
+    assert_eq!(
+        dir.read("state.bin").unwrap_err().kind(),
+        io::ErrorKind::NotFound
+    );
 
     fs::remove_dir_all(root).unwrap();
 }
