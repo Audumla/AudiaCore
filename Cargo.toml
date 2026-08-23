@@ -27,6 +27,7 @@ license = "Apache-2.0"
 # inherit these declarations instead of choosing independent version ranges.
 # Cargo.lock remains the exact reproducible build lock.
 [workspace.dependencies]
+cap-std = { version = "4.0.3", default-features = false }
 serde = "1.0.229"
 serde_json = "1.0.151"
 toml = { version = "1.1.4", default-features = false, features = ["std", "serde", "parse"] }
