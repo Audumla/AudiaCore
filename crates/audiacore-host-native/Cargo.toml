@@ -10,3 +10,4 @@ audiacore-host = { path = "../audiacore-host" }
 
 [dev-dependencies]
 audiacore-sensitive = { path = "../audiacore-sensitive" }
+cap-std = { workspace = true }
