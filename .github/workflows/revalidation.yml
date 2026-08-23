@@ -65,3 +65,20 @@ jobs:
           command: check
           arguments: --all-features
           command-arguments: advisories licenses sources
+
+  lockfile-proof:
+    if: github.ref == 'refs/heads/revalidation/stage8-cleanup-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install 1.95.0 --profile minimal --no-self-update
+      - name: Generate lockfile with Cargo
+        shell: bash
+        run: |
+          cargo check --workspace
+          echo 'LOCKFILE_BEGIN'
+          cat Cargo.lock
+          echo 'LOCKFILE_END'
