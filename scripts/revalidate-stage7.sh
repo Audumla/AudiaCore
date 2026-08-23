@@ -54,7 +54,6 @@ actual_normal="$(normal_dependencies "$manifest")"
 expected_dev="$(printf '%s\n' \
   audiacore-config \
   audiacore-host-native \
-  audiacore-reconcile \
   serde \
   tracing-subscriber)"
 actual_dev="$(dev_dependencies "$manifest")"
