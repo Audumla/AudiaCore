@@ -40,6 +40,25 @@ jobs:
       - name: Install pinned Rust toolchain
         shell: bash
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy --no-self-update
+      # Proof branch only: resolve candidate dependencies without committing them.
+      - name: Resolve cap-std proof lockfile
+        shell: bash
+        run: cargo generate-lockfile
+      - name: Show cap-std proof graph
+        shell: bash
+        run: cargo tree -p audiacore-host-native
+      - name: Show cap-std proof lockfile delta
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: git diff -- Cargo.lock
+      - name: Expose reviewed cap-std proof lockfile
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          echo 'AUDIACORE_LOCKFILE_BASE64_BEGIN'
+          base64 -w0 Cargo.lock
+          echo
+          echo 'AUDIACORE_LOCKFILE_BASE64_END'
       - name: Revalidate foundation and capabilities
         shell: bash
         run: bash scripts/revalidate.sh
