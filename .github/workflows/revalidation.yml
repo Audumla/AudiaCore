@@ -8,6 +8,7 @@ on:
     paths:
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'deny.toml'
       - 'rust-toolchain.toml'
       - 'crates/**'
       - 'examples/**'
@@ -49,3 +50,18 @@ jobs:
       - name: Revalidate Stage 7 application edge
         shell: bash
         run: bash scripts/revalidate-stage7.sh
+
+  supply-chain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # actions/checkout v7.0.1; immutable SHA required by dependency policy.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # EmbarkStudios/cargo-deny-action v2.1.1, bundling cargo-deny 0.20.2.
+      - name: Enforce transitive dependency policy
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
+        with:
+          rust-version: 1.95.0
+          command: check
+          arguments: --all-features
+          command-arguments: advisories licenses sources
