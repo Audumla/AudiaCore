@@ -234,18 +234,28 @@ assert_no_match 'ServiceLocator|HostServices|HostRegistry|FileManager|ProcessMan
   "host contract regained container/manager semantics" "$host_src"
 echo "HOST_BOUNDARY_OK"
 
-# Native host contains OS mechanics only.
+# Native host contains OS mechanics only. Filesystem effects are relative to a
+# cap-std directory capability; callers and public host contracts do not see
+# cap-std types.
 native_manifest="crates/audiacore-host-native/Cargo.toml"
 native_src="crates/audiacore-host-native/src"
-assert_dependencies "$native_manifest" "audiacore-host"
+assert_dependencies "$native_manifest" "$(printf '%s\n' audiacore-host cap-std)"
 assert_no_match 'tokio|tracing|serde|reqwest|figment|audiacore-(config|core|errors)|Recipe|Policy|Provider' \
   "native host contains upward/runtime/application semantics" "$native_src"
 grep -q 'impl FileHost for NativeFileHost' "$native_src/lib.rs" || fail "NativeFileHost implementation missing"
-grep -q 'fs::canonicalize' "$native_src/lib.rs" || fail "native file containment lacks canonicalization"
-grep -q 'fs::symlink_metadata' "$native_src/lib.rs" || fail "native file leaf inspection missing"
+grep -q 'Dir::open_ambient_dir' "$native_src/lib.rs" || fail "native file authority must acquire a directory capability"
+grep -q 'dir.symlink_metadata' "$native_src/lib.rs" || fail "native file leaf inspection must be capability-relative"
+grep -q 'dir.read' "$native_src/lib.rs" || fail "native file reads must be capability-relative"
+grep -q 'dir.remove_file' "$native_src/lib.rs" || fail "native file removals must be capability-relative"
+grep -q 'dir.open_with' "$native_src/file_store.rs" || fail "temporary file creation must be capability-relative"
+grep -q 'dir.rename' "$native_src/file_store.rs" || fail "atomic replacement rename must be capability-relative"
 grep -q 'create_new(true)' "$native_src/file_store.rs" || fail "unique temporary creation missing"
 grep -q 'sync_all()' "$native_src/file_store.rs" || fail "file durability sync missing"
-grep -q 'fs::rename' "$native_src/file_store.rs" || fail "atomic replacement rename missing"
+for file in "$native_src/lib.rs" "$native_src/file_store.rs"; do
+  if sed '/^#\[cfg(test)\]/,$d' "$file" | grep -Eq 'fs::(canonicalize|read|write|remove_file|symlink_metadata|rename)'; then
+    fail "$file reintroduced ambient std::fs target operations after capability acquisition"
+  fi
+done
 process_src="$native_src/process.rs"
 grep -q 'impl ProcessHost for NativeProcessHost' "$process_src" || fail "native ProcessHost implementation missing"
 grep -q 'impl ProcessChild for NativeProcess' "$process_src" || fail "native ProcessChild implementation missing"
