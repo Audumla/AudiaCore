@@ -189,12 +189,11 @@ impl FileHost for NativeFileHost {
 
         match dir.symlink_metadata(&relative) {
             Ok(_) => {
-                let bytes = dir
-                    .read(&relative)
-                    .map_err(|source| NativeHostError::ReadFile {
-                        path: display,
-                        source,
-                    })?;
+                let read = dir.read(&relative);
+                let bytes = read.map_err(|source| NativeHostError::ReadFile {
+                    path: display,
+                    source,
+                })?;
                 Ok(Some(bytes))
             }
             Err(source) if source.kind() == io::ErrorKind::NotFound => {
