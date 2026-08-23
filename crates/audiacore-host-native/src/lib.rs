@@ -188,13 +188,15 @@ impl FileHost for NativeFileHost {
         let display = display_target(authority.root(), &relative);
 
         match dir.symlink_metadata(&relative) {
-            Ok(_) => dir
-                .read(&relative)
-                .map(Some)
-                .map_err(|source| NativeHostError::ReadFile {
-                    path: display,
-                    source,
-                }),
+            Ok(_) => {
+                let bytes = dir
+                    .read(&relative)
+                    .map_err(|source| NativeHostError::ReadFile {
+                        path: display,
+                        source,
+                    })?;
+                Ok(Some(bytes))
+            }
             Err(source) if source.kind() == io::ErrorKind::NotFound => {
                 ensure_parent_directory(&dir, &relative, &display)?;
                 Ok(None)
