@@ -155,7 +155,7 @@ The portable implementation does not claim hostile-concurrent-filesystem race-pr
 
 ### Stage 5B — native process effects
 
-Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1e3ad6`  
+Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1d15a16`  
 Workflow run: `32554534159` (#154) — Ubuntu/macOS/Windows passed.
 
 Accepted an isolated `process.rs` implementation with its own `NativeProcessError`; canonical requested-program/allow-list comparison; canonical existing working-directory validation; direct native stdio mapping; deny-by-default ambient environment with explicit sensitive insertion; owned child stream transfer; `try_wait`, `wait`, and `kill`; and best-effort direct-child kill+wait on dropped live handles.
