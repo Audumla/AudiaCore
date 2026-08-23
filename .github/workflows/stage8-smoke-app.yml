@@ -7,6 +7,12 @@ on:
     paths:
       - examples/stage8-smoke-app/**
       - .github/workflows/stage8-smoke-app.yml
+  pull_request:
+    branches:
+      - revalidation/foundation-layers
+    paths:
+      - examples/stage8-smoke-app/**
+      - .github/workflows/stage8-smoke-app.yml
 
 permissions:
   contents: read
