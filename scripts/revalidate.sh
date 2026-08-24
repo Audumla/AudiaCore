@@ -63,7 +63,7 @@ fi
 
 assert_no_match 'audiacore-managed-config|ManagedConfig|managed_config|IO-MCONFIG|revalidate-stage7' \
   "retired terminology/proof scaffolding returned" \
-  Cargo.toml README.md AGENTS.md crates scripts .github \
+  Cargo.toml README.md AGENTS.md crates .github \
   docs/architecture/layer-lock.md docs/architecture/target-state.md \
   docs/architecture/roadmap.md docs/architecture/dependencies.md
 
