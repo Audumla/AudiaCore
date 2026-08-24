@@ -161,5 +161,8 @@ desired = "configured-value"
     assert!(presented.configured());
     assert_eq!(presented.code(), error.code());
     assert_eq!(presented.kind(), "io");
-    assert_eq!(presented.message(), "Managed Content host operation failed.");
+    assert_eq!(
+        presented.message(),
+        "Managed Content host operation failed."
+    );
 }
