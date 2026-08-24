@@ -2,47 +2,45 @@
 
 Status: **POST-STAGE-8 PLANNING BASELINE**.
 
-This document sequences future proof work against `target-state.md`. It is not
-an implementation backlog and does not override the accepted Stage 8
-`layer-lock.md`.
+This document sequences future proof work against `target-state.md`. It does not
+override the accepted Stage 8 `layer-lock.md`.
 
 ## Planning rule
 
-For every proposed stage or slice:
+For every proposed stage/slice:
 
 1. identify the target capability it advances;
-2. identify which accepted lower contracts it consumes;
-3. prove that no lower layer must acquire higher-layer vocabulary or effects;
+2. identify accepted lower contracts it consumes;
+3. prove no lower layer acquires higher vocabulary/effects;
 4. define the minimum concrete consumer that earns the abstraction;
-5. reject registry/manager/framework machinery that is not required by that
-   consumer;
-6. update `target-state.md` when a target is proved, superseded, split, or
-   rejected.
+5. reject registry/manager/framework machinery not required by that consumer;
+6. update `target-state.md` when a target is proved, split, superseded, or rejected.
 
-The accepted Stage 8 foundation remains fixed unless a required target
-capability produces concrete evidence that a Stage 8 primitive or boundary is
-insufficient.
+Stage 8 remains fixed unless a required target produces concrete evidence that a
+Stage 8 primitive/boundary is insufficient.
 
-## Immediate documentation gate — complete before new production capability work
+## Stage 8 closeout
 
-The target-state recovery is complete when:
+Stage 8 is complete when target-state recovery and target terminology are both
+validated:
 
-- `target-state.md` distinguishes proved, required/deferred, partial,
+- `target-state.md` distinguishes proven, partial, required/deferred,
   hypothetical, and rejected capabilities;
-- `layer-lock.md` records composition/extension ownership without introducing a
+- `layer-lock.md` records component/extension ownership without introducing a
   plugin framework;
-- the Stage 8 acceptance record remains historical rather than acting as the
-  future roadmap;
-- Managed Content is recorded as the target higher capability while
-  `audiacore-managed-config` remains accurately described as the current
-  whole-file proof;
-- README/contributor guidance points to the correct document for current state,
-  target state, layer rules, roadmap, and dependency decisions.
+- the acceptance record remains history rather than the future roadmap;
+- `audiacore-managed-content` is the canonical capability family name;
+- Stage 8 explicitly limits the implemented Managed Content scope to whole-file
+  desired state;
+- no `ManagedConfig*`, `audiacore-managed-config`, `managed_config`, or
+  `IO-MCONFIG-*` compatibility surface remains in the active codebase;
+- README/contributor guidance points to the correct architecture records;
+- full cross-platform and supply-chain gates pass.
 
 ## Next proof — componentized application composition
 
-Before introducing plugin discovery or provider frameworks, prove that the
-application edge can compose at least two independent components without turning
+Before plugin discovery/provider frameworks, prove the application edge can
+compose at least two independent components without turning
 `audiacore-application` into a crate that imports every capability.
 
 Acceptance intent:
@@ -52,136 +50,103 @@ Acceptance intent:
 - compose two independently useful capability implementations;
 - no global registry, service locator, provider registry, or generic component
   manager;
-- no universal `Component` lifecycle trait unless both consumers demonstrably
-  require the same lifecycle contract;
-- reusable capability crates remain independently usable without extension
-  machinery;
-- application/bootstrap code owns implementation selection and lifecycle;
-- move or retire the Stage 7 `ManagedConfigComposition<H>` proving shape if it
-  would otherwise become the canonical all-capabilities composition type.
+- no universal `Component` lifecycle trait unless multiple consumers require the
+  same lifecycle contract;
+- reusable capability crates remain usable without extension machinery;
+- application/bootstrap owns implementation selection and lifecycle;
+- move/retire the Stage 7 `ManagedContentComposition<H>` proof shape if it would
+  otherwise become the canonical all-capabilities composition.
 
-The purpose of this proof is to earn the **component seam**, not the plugin
-system.
+The purpose is to earn the **component seam**, not the plugin system.
 
-## Managed Content proof
+## Managed Content expansion
 
-Managed Content is the target successor capability for application-owned
-contributions to external content. It should be proved as a higher capability,
-not by expanding `audiacore-managed-config` until that crate changes meaning.
+Managed Content already exists as a capability family; its Stage 8 implementation
+is only the whole-file slice. Future slices extend `audiacore-managed-content`
+without changing its layer ownership.
 
-Initial proof should use one real AUDiaGentic requirement and establish the
-smallest valuable ownership model, for example one structured member or one
-bounded text contribution, while preserving unrelated content.
+The first expansion should use one real AUDiaGentic requirement and establish the
+smallest useful ownership model, such as one structured member or one bounded
+text contribution, while preserving unrelated content.
 
 Minimum direction:
 
 - explicit contribution/resource identity;
 - observe -> inspectable plan -> apply -> verify;
 - parser-safe preservation of unrelated content;
-- fail closed when ownership or input structure is ambiguous;
+- fail closed when ownership/input structure is ambiguous;
 - operation receipt/evidence sufficient for later prune/restore reasoning;
-- explicit authority remains separate from ownership semantics.
+- explicit authority separate from ownership semantics.
 
-Do not attempt every format, patch type, multi-resource transaction, or rollback
-mode in the first slice.
+Do not attempt every format, patch type, multi-resource transaction, prune,
+restore, and rollback mode in the first expansion. Whole-file mode remains a
+valid Managed Content slice.
 
-The existing managed whole-file capability may remain a lower mechanism if that
-is useful; its long-term retention is decided by the Managed Content proof, not
-by naming preference.
+## Probe / observation
 
-## Probe / observation proof
+Introduce a narrow observation capability when a real application use case needs
+observations that should not be hidden inside software lifecycle or Managed
+Content. Candidate observations include file/directory presence, executable
+version/discovery, package state, command outcome, content markers, and endpoint
+reachability. Do not introduce a probe registry/provider framework.
 
-Introduce a narrow observation capability only when a real application use case
-needs observations that should not be hidden inside software lifecycle or
-Managed Content.
+## Software lifecycle
 
-Candidate observations include file/directory presence, executable discovery,
-version state, package state, command outcome, content markers, and endpoint
-reachability.
-
-Do not introduce a probe registry or generic provider framework.
-
-## Software lifecycle proof
-
-Build software/package lifecycle above `ProcessHost` after one real integration
-requires install/upgrade/uninstall/applicability/version semantics.
-
-Keep package-manager mechanics out of `ProcessHost`. Shared dependency ownership
-must remain distinguishable from one application's integration state.
+Build install/upgrade/uninstall/applicability/version semantics above
+`ProcessHost` when one real integration requires them. Package-manager mechanics
+do not belong in `ProcessHost`; shared dependency ownership remains distinct
+from one application's integration state.
 
 ## Durable application execution
 
-Reuse the accepted workflow/events/time primitives, but do not assume that they
-already constitute the finished AUDiaGentic execution system.
+Reuse workflow/events/time primitives, but do not assume they already form the
+finished execution system. A real proof may add durable state, resumability,
+bounded public status, explicit diagnostics, output/artifact references,
+retry/timer semantics where required, and compensation distinct from generic
+workflow transition mechanics. Persistence abstractions are earned by a real
+storage consumer.
 
-A durable execution proof should establish only the missing application-level
-semantics required by a real use case, such as:
+## Extension composition
 
-- durable execution identity/state;
-- resumable or inspectable transition state where required;
-- bounded status projection;
-- explicit diagnostics separated from status;
-- output/artifact references rather than large inline payload duplication;
-- retry/timer semantics only where the use case proves them;
-- compensation semantics distinct from generic workflow transition mechanics.
+Only after the component seam is proven should extension identity/resolution be
+introduced. First proof should prefer build/startup-time Rust composition from
+an external crate/repository and demonstrate:
 
-Persistence/repository abstractions must be earned by the first durable storage
-consumer rather than introduced speculatively.
-
-## Extension composition proof
-
-Only after the component seam is proven should the project introduce extension
-identity and resolution.
-
-First proof should prefer build/startup-time Rust composition from an external
-crate/repository. It should demonstrate:
-
-- an external implementation satisfying the same contract as a built-in one;
-- explicit extension identity and compatibility metadata;
-- source/package identity kept separate from configured instance identity;
+- external implementation satisfying the same contract as a built-in one;
+- explicit extension identity/compatibility metadata;
+- package/source identity separate from configured instance identity;
 - validation before application composition;
-- no runtime service-locator access after composition.
+- no service-locator access after composition.
 
-Do not require runtime dynamic loading for this proof.
+Runtime dynamic loading is not required by this proof.
 
 ## Extension packaging/lifecycle
 
-After at least one external extension exists, prove the package/source lifecycle
-actually required by deployment:
-
-- configured source representation;
-- package/version compatibility;
-- install/update/remove where needed;
-- integrity/provenance/security policy;
-- local/private source support where required.
-
-Choose runtime loading technology only after these requirements are concrete.
-Rust dynamic libraries, out-of-process plugins, and WASM components are separate
-options with different ABI, isolation, security, and distribution trade-offs.
+After a real external extension exists, prove only the deployment semantics
+required: configured sources, package/version compatibility,
+install/update/remove, integrity/provenance/security policy, and local/private
+sources where needed. Choose dynamic libraries, out-of-process plugins, WASM, or
+another transport only after concrete requirements justify one.
 
 ## Provider ecosystem
 
-Once component and extension composition are proven, establish the provider
-capability contract from a real ACP-capable provider.
+After component/extension composition is proven:
 
-Sequence intent:
+1. define provider capability vocabulary from a real provider;
+2. add one concrete provider implementation;
+3. integrate ACP transport/session semantics where applicable;
+4. earn capability negotiation from real differences between at least two
+   providers;
+5. prove an external provider through the general extension seam.
 
-1. provider capability vocabulary and request/result boundary;
-2. one concrete provider implementation;
-3. ACP transport/session integration where applicable;
-4. capability negotiation from real differences between at least two providers;
-5. external provider extension proof using the general extension seam.
-
-Provider implementations do not own generic application orchestration, durable
-workflow state, plugin discovery, or status semantics.
+Providers do not own generic orchestration, durable workflow state, plugin
+discovery, or public status semantics.
 
 ## Interoperability surfaces
 
-ACP, A2A, ASA, MCP, API, and control channels should be added as projections or
-adapters around the canonical application/execution model.
-
-Each surface must prove why its vocabulary belongs at the edge and must not
-create a parallel task/workflow/authority/status model.
+ACP, A2A, ASA, MCP, API, and control channels are projections/adapters around one
+canonical application/execution model. Each must justify its edge vocabulary and
+must not create a parallel task/workflow/authority/status model.
 
 ## Stage numbering
 
@@ -189,7 +154,6 @@ Do not assign permanent Stage 9+ numbers merely to fill a sequence. Number a
 stage when its concrete consumer, boundary, exclusions, and acceptance proof are
 ready.
 
-The current preferred next production proof is **componentized application
-composition** because it protects the intended modular target before additional
-capabilities or providers create pressure to accumulate dependencies in
-`audiacore-application`.
+The preferred next production proof is **componentized application composition**
+because it protects the modular target before additional capabilities/providers
+create pressure to accumulate dependencies in `audiacore-application`.

@@ -3,18 +3,18 @@
 Status: Stage 8 architecture contract **ACCEPTED**.
 
 This document defines enduring semantic ownership and dependency direction. It
-does not define the complete product target or the implementation roadmap.
+does not define the complete product target or implementation roadmap.
 
-Use the architecture records as follows:
+Use:
 
-- `revalidation.md` — accepted Stage 0–8 proof history and evidence;
+- `revalidation.md` — accepted Stage 0–8 proof history/evidence;
 - `layer-lock.md` — where responsibilities may and may not live;
 - `target-state.md` — what the finished platform must be capable of;
-- `roadmap.md` — the order in which missing target capabilities should be proved;
+- `roadmap.md` — sequencing for missing target semantics;
 - `dependencies.md` — dependency admission and health decisions.
 
-A dependency graph can be acyclic and still be architecturally wrong when a
-lower layer owns vocabulary or behaviour that belongs above it.
+A Cargo graph can be acyclic and still be architecturally wrong when a lower
+layer owns vocabulary or behaviour that belongs above it.
 
 ## Governing rule
 
@@ -37,24 +37,16 @@ configuration source
       -> capability request
 ```
 
-Configuration sources may include files, environment, CLI/UI input, databases,
-remote configuration services, tests, or other backends. Source choice does not
-become capability semantics.
+Resolved settings are data, not policy. A capability request is narrow desired
+input for one capability; it is not application policy and cannot grant effects.
 
-Resolved settings are data, not policy. Application policy is behaviour intent,
-not a configuration object. A capability request is the narrow desired input
-for one capability; it is not application policy and cannot grant effects.
+`audiacore-config` merges already-acquired in-memory content, resolves typed
+values, and records ordered provenance. It does not discover files, read the
+environment, fetch remote configuration, or acquire application policy. When a
+real source-acquisition consumer appears, prefer a maintained ecosystem library
+over growing source-provider infrastructure inside the resolver.
 
-`audiacore-config` remains intentionally narrower than a source framework. It
-merges already-acquired in-memory content, resolves typed values, and records
-ordered input provenance. It must not discover files, read environment
-variables, fetch remote configuration, or acquire application policy.
-
-When a real source-acquisition consumer is introduced, prefer a maintained
-ecosystem library over growing source-provider infrastructure in
-`audiacore-config`.
-
-## Canonical capability and effect flow
+## Canonical capability/effect flow
 
 ```text
 application policy/use case
@@ -67,70 +59,63 @@ application policy/use case
       -> external machine/resource
 ```
 
-Policy decides what behaviour is desired. Authority independently determines
-which effects are permitted. Configuration and policy cannot mint authority.
+Policy decides desired behaviour. Authority independently determines permitted
+effects. Configuration and policy cannot mint authority.
 
-The public `FileReadAuthority`, `FileWriteAuthority`, and `ProcessAuthority`
-values are explicit scope descriptors passed to host contracts. They make the
-grant visible in APIs and keep policy/configuration separate from permission,
-but they are not by themselves an unforgeable in-process security boundary.
+`FileReadAuthority`, `FileWriteAuthority`, and `ProcessAuthority` are explicit
+scope descriptors passed to host contracts. They make grants visible, but are
+not by themselves unforgeable in-process capability objects. Filesystem
+containment is enforced by the native adapter after acquiring a
+`cap_std::fs::Dir`; target operations remain relative to that directory.
+`ProcessAuthority` is a launch allow-list, not a descendant sandbox.
 
-For filesystem effects, containment is enforced at the native boundary after
-`audiacore-host-native` acquires a `cap_std::fs::Dir`; target operations remain
-relative to that directory capability. `ProcessAuthority` is an explicit launch
-allow-list only and is not a sandbox for the launched process or descendants.
-
-Host contracts know effect mechanics only. They do not know application policy,
-recipes, package-manager policy, Managed Content ownership, providers, plugin
-packages, or application-domain concepts. Native adapters know operating-system
-mechanics only.
+Host contracts know effect mechanics only. Native adapters know operating-system
+mechanics only. Neither owns application policy, recipes, Managed Content
+ownership, providers, extension packages, or application-domain concepts.
 
 ## Core and pure foundation lock
 
 `audiacore-core` owns universal application/execution/correlation identity and
 opaque caller-chosen `Application<C>` composition only. It owns no capability,
-component taxonomy, policy, authority, lifecycle, provider, plugin, discovery,
-I/O, runtime, persistence, serialization, or observability semantics.
+component taxonomy, policy, authority, lifecycle, provider, extension,
+discovery, I/O, runtime, persistence, serialization, or observability semantics.
 
-Pure foundation crates remain deterministic and effect-free. A future target
-capability does not justify pushing its vocabulary into core merely to make it
-widely accessible.
+Pure foundation crates remain deterministic and effect-free. Importance to the
+target state is not a reason to push higher vocabulary into core.
 
 ## Pure reconciliation
 
-`audiacore-reconcile` owns only generic desired-versus-observed planning:
+`audiacore-reconcile` owns only:
 
 ```text
 desired + observed -> Noop | Create | Replace | Delete
 ```
 
-It owns no error identity, resource identifiers, owner identifiers, authority,
-paths, formats, host access, application policy, telemetry, or presentation.
-Resource identity and ownership are semantics of the consuming capability.
+It owns no error identity, resource/owner identifiers, authority, paths,
+formats, hosts, policy, telemetry, or presentation. Resource identity and
+ownership belong to the consuming capability.
 
-## Current managed whole-file capability
+## Managed Content boundary
 
-`audiacore-managed-config` is the accepted Stage 6D **whole-file desired-state
-capability/proof**. It is not configuration-source infrastructure and it is not
-the target Managed Content capability.
+`audiacore-managed-content` is the canonical Managed Content capability family.
+The accepted Stage 8 implementation proves **only its whole-file slice**.
 
-It may:
+That current slice may:
 
 - observe optional whole-file bytes through `FileHost`;
 - compare observed bytes with desired optional bytes;
-- produce a pure plan;
-- apply the plan through explicit file authority.
+- produce an inspectable pure plan;
+- apply create/replace/delete/noop through explicit file authority.
 
-It does not:
+It does not yet:
 
 - parse JSON/TOML/YAML or text sections;
-- own partial content or contributions;
+- own partial content/contributions;
 - prove ownership of pre-existing files;
-- acquire policy or configuration sources;
-- infer restore/prune rights;
-- coordinate multi-resource changes;
-- orchestrate recipes;
-- manage packages;
+- infer prune/restore rights;
+- coordinate multiple resources;
+- provide rollback/compensation semantics;
+- orchestrate recipes or software lifecycle;
 - watch/retry/schedule;
 - provide multi-writer/CAS semantics.
 
@@ -138,26 +123,23 @@ It does not:
 explicitly delegated whole-file lifecycle responsibility. File authority permits
 the effect but does not prove semantic ownership of existing content.
 
-Do not rename this crate to Managed Content merely to match the target name, and
-do not grow the target capability into this crate by accretion. Its eventual
-retention, absorption, or retirement is decided by a real Managed Content proof.
+The target terminology is deliberate: later partial/structured semantics extend
+the same Managed Content capability family. Naming the Stage 8 types
+`ManagedContent*` does not claim those later semantics are already implemented.
 
-## Target Managed Content boundary
+Future Managed Content requirements include whole-resource and partial
+contribution ownership, structured member/collection ownership, bounded text
+contributions, preservation of unrelated content, preconditions, coordinated
+changes, verification, ownership-aware prune, explicit restore,
+rollback/compensation, and auditable receipts/evidence.
 
-Managed Content is the required higher-level capability for safely managing
-application-owned contributions to external content. Its requirements are
-tracked in `target-state.md` and include whole-resource or partial contribution
-ownership, structured member/collection ownership, bounded text contributions,
-preservation of unrelated user content, ownership-aware prune, explicit restore,
-coordinated changes, verification, compensation, and auditable receipts.
-
-Managed Content composes lower mechanisms. It must not absorb configuration
-source acquisition, application policy, filesystem authority, native I/O,
-software lifecycle, or recipe orchestration.
+Managed Content must not absorb configuration-source acquisition, application
+policy, filesystem authority, native I/O, software lifecycle, provider/session
+semantics, or recipe orchestration.
 
 Prune, restore, and rollback remain distinct:
 
-- prune removes a contribution we can establish as ours from current state;
+- prune removes a contribution established as ours from current state;
 - restore deliberately reapplies an explicitly retained prior state;
 - rollback compensates effects during a failed operation.
 
@@ -165,40 +147,34 @@ They must not collapse into a generic `undo()`.
 
 ## Sibling higher capabilities
 
-The target capability map currently includes sibling capabilities such as:
+The target map also includes Probe/Observation, Software Lifecycle, durable
+application execution/orchestration, componentized application composition,
+extension/package lifecycle, provider capabilities/ACP adapters, and
+interoperability surfaces including MCP, A2A, ASA, API, and control channels.
 
-- Probe / observation;
-- Software lifecycle;
-- durable application execution/orchestration;
-- componentized application composition;
-- extension/plugin composition and package/source lifecycle;
-- provider capabilities and ACP-backed provider adapters;
-- interoperability surfaces including MCP, A2A, ASA, API, and control channels.
-
-These are not Managed Content subsystems and may not be pulled into lower layers
-for convenience. Their detailed target status belongs in `target-state.md`, not
-in this lock.
+These are siblings, not Managed Content subsystems, and may not be pulled into
+lower layers for convenience.
 
 ## Componentized application composition lock
 
 `Application<C>` remains opaque over caller-chosen composition. The Stage 7
-`ManagedConfigComposition<H>` is a proving consumer, not the canonical future
-component set and not precedent for accumulating every capability in
-`audiacore-application`.
+`ManagedContentComposition<H>` is a proving consumer only; it is not the
+canonical future component set and is not precedent for accumulating every
+capability inside `audiacore-application`.
 
-The target composition direction is:
+Target composition direction:
 
 ```text
-configured/built-in/external implementation sources
+configured / built-in / external implementation sources
                     |
                     v
-         resolution + validation
+          resolution + validation
                     |
                     v
           concrete implementations
                     |
                     v
-        explicit application/bootstrap composition
+      explicit application/bootstrap composition
                     |
                     v
               normal runtime
@@ -207,45 +183,36 @@ configured/built-in/external implementation sources
 Normal runtime consumers receive typed collaborators. They do not query a
 service locator or global registry.
 
-Keep these identities distinct:
-
-- capability — required behaviour;
-- component — composable implementation unit;
-- extension — distributable/discoverable contribution;
-- package/source — how an extension is obtained;
-- instance — one configured runtime use.
-
-First-party and externally supplied implementations use the same capability and
-component seams after resolution. Reusable capability crates must not depend on
-extension discovery, package resolution, or application composition machinery.
+Keep capability, component, extension, package/source, and configured instance
+as distinct identities. First-party and externally supplied implementations use
+the same capability/component seams after resolution. Reusable capabilities do
+not depend on extension discovery, package resolution, or application
+composition machinery.
 
 Do not introduce service locators, dependency containers, global registries,
-runtime provider registries, generic manager frameworks, or implicit ambient
-context as the system grows.
-
-Do not introduce a universal `Component` lifecycle trait before multiple real
+runtime provider registries, generic manager frameworks, implicit ambient
+context, or a universal `Component` lifecycle trait before multiple real
 components prove common lifecycle semantics.
 
 ## Extension/plugin boundary
 
-External implementations from different repositories or locations are part of
-the target state, but runtime dynamic loading is not yet an accepted mechanism.
-Extension discovery and package/source handling live at the
+External implementations from different repositories/locations are required
+target capability. Extension discovery and package/source handling live at the
 application/bootstrap edge.
 
 The first extension proof should prefer ordinary Rust crates plus explicit
-build/startup composition. `.dll`/`.so`/`.dylib`, WASM components, or
+build/startup composition. Dynamic Rust libraries, WASM components, and
 out-of-process plugin transports require separate evidence for ABI,
-compatibility, deployment, isolation, and security needs.
+compatibility, deployment, isolation, and security.
 
-Extension machinery must not become a globally accessible registry after normal
-composition is complete.
+Extension machinery must not remain as a globally accessible registry after
+normal composition is complete.
 
-## Provider and interoperability boundary
+## Provider/interoperability boundary
 
-Provider implementations are capability implementations, not owners of generic
-application orchestration. Adding a provider must not require provider-specific
-branches throughout generic orchestration.
+Providers are capability implementations, not owners of generic orchestration.
+Adding a provider must not require provider-specific branches throughout generic
+application logic.
 
 ACP, A2A, ASA, MCP, API, and control channels belong at interoperability or
 application edges around one canonical application/execution model. They must
@@ -254,95 +221,68 @@ models.
 
 ## Cross-cutting outputs remain separate
 
-Do not collapse these into one generic event abstraction:
+Do not collapse:
 
-- domain event — semantic fact meaningful to the consuming application;
-- operation receipt/evidence — structured result of a capability operation;
-- operational trace/log — diagnostic/audit observation of execution;
-- execution output/artifact — information intentionally returned or retained for
-  a caller;
-- public status projection — bounded durable lifecycle/activity projection;
-- explicit diagnostics — bounded diagnostic detail requested separately.
+- domain event — semantic fact meaningful to the application;
+- operation receipt/evidence — structured result/evidence of an operation;
+- operational trace/log — diagnostic/audit observation;
+- execution output/artifact — information intentionally returned/retained;
+- public status projection — bounded durable lifecycle/activity view;
+- explicit diagnostics — bounded detail requested separately.
 
-A log is not durable ownership evidence. A domain event is not a trace record. A
-receipt is not user-facing presentation. Public status must not become a dump of
-provider or diagnostic internals.
+A log is not ownership evidence. A domain event is not a trace record. A receipt
+is not presentation. Public status must not become a dump of provider or
+diagnostic internals.
 
 ## Operational tracing contract
 
-Use the established Rust `tracing` ecosystem. AudiaCore defines meaning, not a
-logging framework. Subscribers/exporters remain executable/application-edge
-owned.
+Use the Rust `tracing` ecosystem. Libraries define stable instrumentation meaning;
+subscriber/exporter installation remains executable/application-edge owned.
 
-Current canonical operation fields are:
+Current canonical fields are `application_id`, `execution_id`,
+`correlation_id`, `outcome`, `result` where applicable, `phase` where useful,
+and stable `error_code` on coded failure/degradation. Canonical outcomes are
+`success`, `failure`, and `degraded`.
 
-- `application_id`;
-- `execution_id`;
-- `correlation_id`;
-- `outcome`;
-- `result` where applicable;
-- `phase` where needed to locate failure within an operation;
-- stable `error_code` on coded failure/degradation.
+ERROR means requested operation failed; WARN means degraded/fallback completion;
+INFO records meaningful operation/state/effect completion; DEBUG and TRACE are
+bounded diagnostics. Normal audit-level records must not broadly format
+requests, configuration, contexts, credentials, secrets, or arbitrary errors.
 
-Canonical outcomes are `success`, `failure`, and `degraded`.
-
-Level semantics:
-
-- ERROR — requested operation failed;
-- WARN — operation or presentation completed in degraded/fallback form;
-- INFO — meaningful operation/state/effect completion;
-- DEBUG — controlled diagnostic detail;
-- TRACE — fine-grained internal diagnostics.
-
-Normal audit-level records must not broadly format requests, configuration,
-contexts, credentials, secrets, or arbitrary error objects. Recognized sensitive
-values remain redacted by construction.
-
-Do not add `LoggingService`, `LoggerManager`, `TelemetryRegistry`,
-`AuditRegistry`, or equivalent framework abstractions.
+Do not add logging/telemetry/audit manager or registry abstractions.
 
 ## Dependency health and build-versus-buy
 
-New direct dependencies require a recorded health check before adoption. Existing
-direct dependencies are periodically rechecked.
-
-A dependency is unacceptable when credible evidence shows it is abandoned,
-unmaintained, archived without a supported successor, security-neglected, or
-otherwise stale for the required role. A useful API is insufficient.
-
-The review considers maintenance/stewardship, issue/security responsiveness,
-deprecation status, ecosystem/successor guidance, transitive exposure,
-feature/dependency weight, MSRV/platform support, and license compatibility.
+New direct dependencies require a recorded health check. A useful API is
+insufficient when maintenance, security, provenance, platform/MSRV, license,
+transitive cost, or layer fit is unacceptable.
 
 Direct third-party dependencies are approved once in root
 `[workspace.dependencies]`; member crates inherit them with `workspace = true`.
 Local path dependencies must resolve to declared workspace members. `deny.toml`
-and the SHA-pinned `cargo-deny` CI action govern advisories, licenses, and
-sources across the resolved graph.
+and SHA-pinned `cargo-deny` CI govern advisories, licenses, and sources across
+the resolved graph.
 
-If AudiaCore begins rebuilding broad source/provider discovery, package
-resolution, format infrastructure, or other functionality supplied by a healthy
-maintained ecosystem library, reopen build-versus-buy before adding custom
-framework code.
+If AudiaCore starts rebuilding broad source/provider discovery, package
+resolution, format infrastructure, or functionality already supplied by a
+healthy maintained ecosystem library, reopen build-versus-buy before adding a
+custom framework.
 
 ## Semantic dependency lock
-
-Cargo direction is necessary but insufficient. Each layer also has forbidden
-knowledge.
 
 | Layer | Must not know |
 | --- | --- |
 | Core | files, packages, recipes, providers, extensions, config sources, logging frameworks |
 | Reconcile | errors, owners, resource IDs, paths, formats, authority, hosts, policy, telemetry |
 | Config resolution | application behaviour, authority, mutation, native effects, source discovery |
-| Host contracts | application policy, recipes, Managed Content ownership, config sources, plugins |
+| Host contracts | application policy, recipes, Managed Content ownership, config sources, extensions |
 | Native host | application/provider/recipe/policy/extension semantics |
-| Managed whole-file capability | config acquisition, native host, app-domain policy, partial ownership |
-| Managed Content | config acquisition, native I/O, application recipe/domain/provider semantics |
+| Managed Content whole-file slice | config acquisition, native host, app-domain policy, partial ownership semantics |
+| Managed Content future slices | config acquisition, native I/O, application recipe/domain/provider semantics |
 | Probe | application orchestration, registries/managers, native implementation details |
-| Software lifecycle | app/provider domain concepts, native process implementation |
-| Component/extension composition | capability internals, native effect mechanics, application-domain behaviour decisions |
-| Provider implementation | generic application orchestration, plugin discovery, durable workflow ownership |
+| Software lifecycle | app/provider concepts, native process implementation |
+| Component/extension composition | capability internals, native effect mechanics, app behaviour decisions |
+| Provider implementation | generic orchestration, plugin discovery, durable workflow ownership |
 | Application policy | host/native/parser mechanics and effect authority |
 | Presentation/status | behavioural decisions and effect execution |
 | Tracing | source-of-truth domain state or ownership evidence |
@@ -352,17 +292,17 @@ Cargo dependency is present.
 
 ## Stage 8 acceptance
 
-Final accepted Stage 8 head: `28ba554b1cd46bb56838ed5f9d9cc20a5881c391`  
-Workflow run: `32624993669` (#446) — Ubuntu 24.04, macOS 15, Windows 2025, and the
-supply-chain/architecture gates passed.
+The original Stage 8 audit baseline was
+`28ba554b1cd46bb56838ed5f9d9cc20a5881c391`, validated by run
+`32624993669` (#446) on Ubuntu 24.04, macOS 15, Windows 2025 plus the
+supply-chain/architecture gates.
 
-The Stage 8 audit found no layer inversion requiring production redesign. The
-accepted foundation remains deliberately small: effect-free core/foundation
-semantics, explicit host ports and scopes, native effect adapters, narrow
+The final Stage 8 closeout additionally aligns target-state documentation and
+Managed Content terminology without broadening capability semantics. The final
+closeout head/run are recorded in `revalidation.md` after validation.
+
+The Stage 8 foundation remains deliberately small: effect-free core/foundation
+semantics, explicit host ports/scopes, native effect adapters, narrow
 capabilities, and an application composition/presentation/observability edge.
-
-Future capabilities must be mapped in `target-state.md`, earn their own
-boundaries, and build upward from this lock. A required target capability may
-justify reopening a Stage 8 decision only when a concrete proof demonstrates
-that the accepted boundary itself blocks the target; absence of a higher layer
-is not such evidence.
+Future work builds upward from this lock unless a concrete required target proves
+that the boundary itself is insufficient.

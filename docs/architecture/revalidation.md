@@ -5,32 +5,25 @@ Status: **COMPLETE THROUGH STAGE 8**.
 This document is the accepted proof history for the clean-room Rust foundation.
 It is not the future capability roadmap.
 
-Use:
-
-- `layer-lock.md` for enduring semantic ownership/dependency rules;
-- `target-state.md` for required and deferred platform capabilities;
-- `roadmap.md` for post-Stage-8 proof sequencing;
-- `dependencies.md` for dependency admission/health decisions.
+Use `layer-lock.md` for enduring ownership rules, `target-state.md` for target
+capabilities, `roadmap.md` for future sequencing, and `dependencies.md` for
+dependency decisions.
 
 ## Method
 
-AudiaCore rebuilt the production Rust foundation from an empty repository so
-each boundary was re-earned rather than copied from the prior AUDiaGentic code.
-Prior work was treated as requirements evidence, not implementation authority.
+AudiaCore rebuilt the Rust foundation from an empty repository so each boundary
+was re-earned rather than copied from prior AUDiaGentic code. Prior work was
+requirements evidence, not implementation authority.
 
-Every accepted stage had to:
+Every accepted stage had to define responsibility/exclusions, add only enough
+code to prove them, add behaviour/architecture gates, pass formatting/Clippy/tests
+with the committed lockfile, pass Ubuntu/macOS/Windows, and preserve downward
+Cargo and semantic dependency direction.
 
-1. state responsibility and exclusions before acceptance;
-2. add only enough code to prove that responsibility;
-3. add behaviour tests and architecture gates;
-4. pass formatting, Clippy `-D warnings`, and tests with the committed lockfile;
-5. pass Ubuntu, macOS, and Windows;
-6. preserve downward dependency and semantic ownership direction.
-
-A green build alone was insufficient. Configuration provenance, policy/authority
-separation, native-effect isolation, stable error identity, supply-chain policy,
-and absence of speculative registries/managers/frameworks were acceptance
-criteria.
+A green build alone was insufficient. Configuration provenance,
+policy/authority separation, native-effect isolation, stable error identity,
+supply-chain policy, and absence of speculative registries/managers/frameworks
+were acceptance criteria.
 
 ## Accepted foundation model
 
@@ -50,26 +43,19 @@ pure foundation semantics
 core
 ```
 
-Stage 8 validated this model for the accepted scope. Future target capabilities
-build above it unless a concrete proof demonstrates that a Stage 8 boundary
-itself blocks a required target.
-
 ## Global accepted invariants
 
 - Dependencies and semantic vocabulary flow downward/inward only.
-- Core remains capability-neutral and effect-free.
-- Pure foundation semantics remain deterministic and effect-free.
-- Configuration resolution does not acquire sources or application policy.
-- Application policy expresses behaviour intent; capability requests are narrow
-  inputs, not policy/configuration objects.
-- Authorities grant effects independently of config/policy.
+- Core is capability-neutral and effect-free.
+- Pure foundation semantics are deterministic/effect-free.
+- Config resolution does not acquire sources or application policy.
+- Application policy, capability requests, and effect authority are distinct.
 - Native effects cross narrow host contracts and remain in native adapters.
-- Stable error identity is separate from configured human-facing presentation.
-- Component-owned `errors.yaml` files own canonical presentation definitions.
-- Domain events, operation receipts/evidence, operational tracing, execution
-  output/artifacts, status projections, and diagnostics are separate concepts.
-- No service locator, global registry, generic manager layer, provider registry,
-  or speculative plugin framework is part of the accepted foundation.
+- Stable error identity is separate from configured presentation.
+- Domain events, receipts/evidence, tracing, output/artifacts, public status, and
+  diagnostics are separate concepts.
+- No service locator, global registry, generic manager, provider registry, or
+  speculative plugin framework is part of the foundation.
 - `Application<C>` is an opaque caller-chosen composition seam, not a canonical
   all-components container.
 
@@ -89,80 +75,50 @@ itself blocks a required target.
 | 6A | Events | `4fdbd7c7a0fa10e6a16af60db788f9cb3c81b088` | #178 / `32555075146` | ACCEPTED |
 | 6B | Workflow transition primitives | `8964a27ba4b7a78d047249dc10ede482cc37a561` | #198 / `32555734185` | ACCEPTED |
 | 6C | Time/timer primitives | `2e4c770f473ef3f5177a830590160bd9510ec8b9` | #218 / `32556194161` | ACCEPTED |
-| 6D | Managed whole-file desired-state capability | `1b99cf2d6558844b10583d130b30b9200aa41b8c` | #236 / `32556604138` | ACCEPTED |
+| 6D | Managed Content whole-file semantics (original proof name: managed-config) | `1b99cf2d6558844b10583d130b30b9200aa41b8c` | #236 / `32556604138` | ACCEPTED |
 | corrective | Configured errors + template contract | `9302e83bea79a7ce82d2fd542363ac1b79ed9f97` | #302 / `32559461700` | ACCEPTED |
 | 7 | Application composition/request/observability proof | `9ee04ce0d57aee0a00707765e894f245efaf3941` | #338 / `32566520037` | ACCEPTED |
-| 8 | Full layer/dependency/supply-chain audit | `28ba554b1cd46bb56838ed5f9d9cc20a5881c391` | #446 / `32624993669` | ACCEPTED |
+| 8 audit baseline | Full layer/dependency/supply-chain audit | `28ba554b1cd46bb56838ed5f9d9cc20a5881c391` | #446 / `32624993669` | ACCEPTED |
+| 8 closeout | Target-state recovery + Managed Content terminology | recorded after final validation | recorded after final validation | VALIDATING |
 
-## What each stage established
+## What the stages established
 
-### Stage 0 — repository/build discipline
+### Stages 0–3B
 
-Repository controls, pinned toolchain discipline, cross-platform CI, and
-architecture-gate conventions were established before product layers. Repository
-guidance such as `AGENTS.md` is not a runtime/product layer.
-
-### Stage 1 — core
-
-Accepted application/execution/correlation identity, identity-only execution
-context, and opaque `Application<C>`. Capability/component taxonomy, lifecycle,
-registries, I/O, policy, authority, provider, serialization, and runtime concepts
-were deliberately excluded from core.
-
-### Stage 2 and corrective presentation work
-
-`audiacore-errors` ultimately owns stable code/category identity only. Typed
-owning-crate errors retain diagnostic context. Human-facing canonical
-message/kind/resolution definitions live in component-owned `errors.yaml`
-catalogues and are rendered by caller-owned presentation machinery.
-
-### Stage 3A — pure deterministic primitives
-
-Accepted sensitive values, mapping-only templates, and pure reconciliation.
-Templates resolve explicit JSON-like mapping data only; reconciliation owns only
-desired-versus-observed planning.
-
-### Stage 3B — configuration
-
-Accepted ordered in-memory TOML layers, recursive override, typed Serde
-resolution, and exact ordered-input provenance. Source discovery, filesystem/env
-acquisition, remote configuration, and application policy remain outside the
+Established repository discipline, zero-dependency core identity/opaque
+composition, stable coded error identity, sensitive values, mapping-only
+templates, pure reconciliation, and source-free configuration
+resolution/provenance. Config source acquisition and policy remained above the
 resolver.
 
-### Stages 4A/4B — host contracts and authority
+### Stages 4A–5B
 
-Accepted narrow file/process effect ports plus explicit authority scopes. Host
-contracts do not own application policy, recipes, Managed Content ownership,
-providers, or plugin/package semantics.
-
-### Stages 5A/5B — native effects
-
-Accepted native file/process adapters isolated from semantic layers. Filesystem
-operations use capability-relative containment through `cap-std`; process
-launch authority is an allow-list, not a descendant sandbox.
+Established narrow file/process ports plus explicit authority scopes and native
+adapters. Filesystem effects use capability-relative `cap-std` containment.
+Process authority is a launch allow-list, not a descendant sandbox.
 
 ### Stage 6A — events
 
-Accepted typed streams, caller-owned sequencing, explicit retention policy, and
-cursor paging. No event bus, broker, transport, retry engine, persistence,
-scheduler, or global publisher registry was introduced.
+Established typed streams, caller-owned sequencing, explicit retention, and
+cursor paging without broker/transport/retry/persistence/scheduler semantics.
 
 ### Stage 6B — workflow
 
-Accepted deterministic workflow-local transition decisions, explicit optimistic
-revision, receipts, and restorable snapshots. No scheduler, retry engine,
-compensation system, persistence repository, workflow manager, or runtime was
-introduced.
+Established deterministic workflow-local transition decisions, explicit
+optimistic revision, receipts, and restorable snapshots without scheduler,
+retry, compensation, persistence repository, manager, or runtime ownership.
 
 ### Stage 6C — time
 
-Accepted caller-supplied timestamps/deadlines and deterministic timer-set
-semantics. No clock provider, sleeping, scheduler, runtime, or global timer
-registry was introduced.
+Established caller-supplied timestamps/deadlines and deterministic timer-set
+semantics without clock acquisition, sleeping, scheduler, runtime, or global
+timer registry.
 
-### Stage 6D — managed whole-file desired state
+### Stage 6D — Managed Content whole-file slice
 
-Accepted the current `audiacore-managed-config` capability:
+The original proof was named `audiacore-managed-config`; Stage 8 closeout aligns
+that implementation with the target capability name `audiacore-managed-content`
+without broadening its semantics:
 
 ```text
 optional whole-file observation
@@ -172,50 +128,43 @@ optional whole-file observation
       -> apply through explicit file authority
 ```
 
-This is **not Managed Content**. It does not own partial/structured content,
-contribution identity, prune/restore rights, coordinated multi-resource changes,
-or rollback semantics. Managed Content is now recorded as the required target
-higher capability in `target-state.md`.
+It still does not implement partial/structured ownership, contribution identity,
+prune/restore, coordinated multi-resource changes, or rollback/compensation.
+Those remain future slices of the same Managed Content capability family.
 
 ### Stage 7 — application-edge proof
 
-Accepted one narrow proving composition around `ManagedConfigComposition<H>` to
-demonstrate direct typed composition, source-independent capability requests,
-independently supplied authority, configured error presentation, sensitive-value
-redaction, native effect execution, and edge-owned structured tracing.
+The proof now uses `ManagedContentRequest`, `ManagedContentComposition<H>`, and
+`execute_managed_content` to demonstrate direct typed composition,
+source-independent requests, separately supplied authority, configured error
+presentation, sensitive redaction, native effect execution, and edge-owned
+structured tracing.
 
-That concrete composition is explicitly not the canonical future application
-shape and must not accumulate every future capability in
-`audiacore-application`.
+That concrete composition is not the canonical future application shape and
+must not accumulate every future capability in `audiacore-application`.
 
-### Stage 8 — full layer lock
+### Stage 8 — layer lock and target-state closeout
 
-The full repository was re-audited for both Cargo direction and semantic
-ownership. Dependency admission covers normal/dev/build/target-specific direct
-edges, while `cargo-deny` gates advisories/licenses/sources across the transitive
-graph.
+The full repository audit established the accepted layer/dependency/supply-chain
+baseline at `28ba554b...` / run #446. The closeout then recovered the explicit
+target capability map and aligned active Managed Content terminology so future
+work does not carry a known rename/refactor debt.
 
-Final accepted Stage 8 head:
-`28ba554b1cd46bb56838ed5f9d9cc20a5881c391`.
+The terminology closeout intentionally removes the active
+`audiacore-managed-config`, `ManagedConfig*`, `managed_config`, and
+`IO-MCONFIG-*` surfaces rather than retaining compatibility aliases. Git history
+preserves the original proof names.
 
-Final validation run:
-`32624993669` (#446), successful on Ubuntu 24.04, macOS 15, and Windows 2025.
-
-No production layer inversion requiring redesign was found.
+Final Stage 8 closeout head and workflow are filled in after the complete
+cross-platform/supply-chain run passes.
 
 ## Post-Stage-8 rule
 
-Revalidation is complete; future work is target-capability development, not an
-indefinite extension of the clean-room audit.
+Future work is target-capability development, not indefinite clean-room audit.
+Before a new production slice, identify its target entry, confirm ownership
+against `layer-lock.md`, define a minimum concrete proof/exclusions, and update
+target status when accepted.
 
-Before implementing a new production slice:
-
-1. identify its entry in `target-state.md`;
-2. confirm its owner against `layer-lock.md`;
-3. define the minimum concrete proof and exclusions in `roadmap.md` or the stage
-   plan;
-4. update target status when accepted.
-
-Do not treat absence from Stage 0–8 as evidence that a recovered target
-capability was rejected. Conversely, do not introduce a target capability into a
-lower layer merely because it is important to the finished platform.
+Absence from Stage 0–8 does not mean a recovered target was rejected. Conversely,
+importance to the target does not justify moving its vocabulary into a lower
+layer.

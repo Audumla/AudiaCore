@@ -43,7 +43,7 @@ expected_normal="$(printf '%s\n' \
   audiacore-error-catalog \
   audiacore-errors \
   audiacore-host \
-  audiacore-managed-config \
+  audiacore-managed-content \
   audiacore-sensitive \
   audiacore-template \
   tracing)"
@@ -60,11 +60,11 @@ actual_dev="$(dev_dependencies "$manifest")"
 [[ "$actual_dev" == "$expected_dev" ]] \
   || fail "application proof dependencies changed; expected [$expected_dev], found [$actual_dev]"
 
-for symbol in ManagedConfigRequest ManagedConfigComposition MessageContext PresentedError; do
+for symbol in ManagedContentRequest ManagedContentComposition MessageContext PresentedError; do
   grep -q "pub struct $symbol" "$src" || fail "Stage 7 application edge missing $symbol"
 done
-! grep -q 'ManagedConfigPolicy' "$src" || fail "capability request is still mislabeled as application policy"
-grep -q 'pub fn execute_managed_config' "$src" || fail "Stage 7 execution proof missing"
+! grep -q 'ManagedContentPolicy' "$src" || fail "capability request is mislabeled as application policy"
+grep -q 'pub fn execute_managed_content' "$src" || fail "Stage 7 execution proof missing"
 grep -q 'pub fn present_error' "$src" || fail "configured error presentation edge missing"
 grep -q 'pub fn redacted_value' "$src" || fail "sensitive message projection seam missing"
 grep -q 'tracing::info_span!' "$src" || fail "structured execution span missing"
@@ -75,7 +75,7 @@ grep -q 'correlation_id = %execution.correlation_id()' "$src" || fail "correlati
 grep -q 'outcome = "success"' "$src" || fail "successful application outcome is not structured"
 grep -q 'outcome = "failure"' "$src" || fail "failed application outcome is not structured"
 grep -q 'outcome = "degraded"' "$src" || fail "degraded presentation outcome is not structured"
-grep -q 'result = managed_config_result(result)' "$src" || fail "managed-config result is not emitted as a stable audit value"
+grep -q 'result = managed_content_result(result)' "$src" || fail "Managed Content result is not emitted as a stable audit value"
 ! grep -Eq 'result[[:space:]]*=[[:space:]]*\?' "$src" || fail "audit result must not use Debug formatting"
 ! grep -Eq 'presentation_error[[:space:]]*=[[:space:]]*%' "$src" || fail "presentation fallback must not emit arbitrary diagnostic text at WARN"
 
@@ -98,7 +98,7 @@ grep -q 'FileReadAuthority' "$proof" || fail "read authority is not explicitly s
 grep -q 'FileWriteAuthority' "$proof" || fail "write authority is not explicitly supplied"
 grep -q 'tracing::subscriber::with_default' "$proof" || fail "observability subscriber is not edge-owned"
 grep -q 'fs::read' "$proof" || fail "end-to-end proof does not verify the real native file effect"
-grep -q 'IO-MCONFIG-001' "$proof" || fail "real native failure does not assert stable managed-config error identity"
+grep -q 'IO-MCONTENT-001' "$proof" || fail "real native failure does not assert stable Managed Content error identity"
 grep -q 'present_error(' "$proof" || fail "real coded failure is not passed through configured presentation"
 grep -Fq 'application.composition().errors()' "$proof" || fail "configured presentation is not using the caller-owned application catalogue"
 grep -q 'request_from_config' "$proof" || fail "resolved settings are not converted into a capability request"

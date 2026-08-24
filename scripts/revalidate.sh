@@ -45,7 +45,8 @@ assert_no_match() {
 
 for path in .gitignore LICENSE README.md AGENTS.md rust-toolchain.toml \
   docs/architecture/revalidation.md docs/architecture/layer-lock.md \
-  .github/workflows/revalidation.yml; do
+  docs/architecture/target-state.md docs/architecture/roadmap.md \
+  docs/architecture/dependencies.md .github/workflows/revalidation.yml; do
   [[ -f "$path" ]] || fail "missing required repository file: $path"
 done
 
@@ -193,7 +194,7 @@ catalog_manifest="crates/audiacore-error-catalog/Cargo.toml"
 catalog_src="crates/audiacore-error-catalog/src/lib.rs"
 assert_dependencies "$catalog_manifest" "$(printf '%s\n' audiacore-errors audiacore-template serde yaml_serde)"
 assert_no_dev_or_build_dependencies "$catalog_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-(core|config|host|host-native|events|workflow|time|managed-config)' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-(core|config|host|host-native|events|workflow|time|managed-content)' \
   "error catalogue contains discovery/effects/upward semantics" "$catalog_src"
 for symbol in ErrorDefinition ErrorCatalogue RenderedError ErrorCatalogueError; do
   grep -q "$symbol" "$catalog_src" || fail "configured error catalogue missing $symbol"
@@ -302,35 +303,38 @@ assert_no_match 'Clock|TimeProvider|TimerManager|TimerRegistry|Scheduler|Task|Sl
   "time regained clock/scheduler/runtime semantics" "$time_src"
 echo "TIME_CAPABILITY_OK"
 
-# Current managed-config is deliberately only a whole-file capability.
-managed_manifest="crates/audiacore-managed-config/Cargo.toml"
-managed_src="crates/audiacore-managed-config/src/lib.rs"
+# Managed Content currently proves only its whole-file slice.
+managed_manifest="crates/audiacore-managed-content/Cargo.toml"
+managed_src="crates/audiacore-managed-content/src/lib.rs"
 assert_dependencies "$managed_manifest" "$(printf '%s\n' audiacore-errors audiacore-host audiacore-reconcile)"
 assert_no_dev_or_build_dependencies "$managed_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|time|config|host-native)|OwnerId|OwnershipMismatch|ManagedContent|Policy' \
-  "managed whole-file capability contains source/native/ownership/upward semantics" crates/audiacore-managed-config/src
-for symbol in ManagedConfigTarget ManagedConfigPlan ManagedConfigApplyResult ManagedConfigError; do
-  grep -q "$symbol" "$managed_src" || fail "managed whole-file capability missing $symbol"
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|time|config|host-native)|OwnerId|OwnershipMismatch|ContributionId|Policy' \
+  "Managed Content whole-file slice contains source/native/ownership/upward semantics" crates/audiacore-managed-content/src
+for symbol in ManagedContentTarget ManagedContentPlan ManagedContentApplyResult ManagedContentError; do
+  grep -q "$symbol" "$managed_src" || fail "Managed Content whole-file slice missing $symbol"
 done
-grep -q 'target: ManagedConfigTarget' "$managed_src" || fail "whole-file plan must bind the exact target"
+grep -q 'target: ManagedContentTarget' "$managed_src" || fail "whole-file plan must bind the exact target"
 grep -q 'host.read_optional' "$managed_src" || fail "whole-file observation must use FileHost"
 grep -q 'reconcile_presence' "$managed_src" || fail "whole-file planning must delegate to pure reconcile"
 grep -q 'host.write(authority, plan.target().path()' "$managed_src" || fail "apply must use the plan-bound target"
 grep -q 'host.remove(authority, plan.target().path()' "$managed_src" || fail "delete must use the plan-bound target"
 assert_no_match 'Parser|Watcher|Scheduler|Retry|Backoff|Cas|CAS|Manager|Registry|Receipt' \
-  "managed whole-file capability regained unearned higher-level semantics" "$managed_src"
-echo "MANAGED_WHOLE_FILE_CAPABILITY_OK"
+  "Managed Content whole-file slice regained unearned higher-level semantics" "$managed_src"
+echo "MANAGED_CONTENT_WHOLE_FILE_SLICE_OK"
 
-# Global semantic lock: production code must not bypass the tracing/host/config boundaries.
+# Global semantic lock: production code must not bypass tracing/host/config boundaries.
 assert_no_match 'set_global_default|tracing_subscriber::.*\.init\(|tracing_subscriber::.*try_init\(' \
   "library code owns a global tracing subscriber" crates/*/src
 assert_no_match 'ServiceRegistry|ProviderRegistry|PolicyRegistry|ServiceLocator|DependencyContainer|GlobalRuntime|GlobalContext' \
   "registry/container semantics returned" crates/*/src
 
+# Architecture records have distinct jobs and must retain their governing locks.
 grep -q 'Sources provide data' docs/architecture/layer-lock.md || fail "layer-lock governing rule missing"
-grep -q 'Dependency health and build-versus-buy' docs/architecture/layer-lock.md || fail "dependency-health contract missing"
-grep -q 'Figment was reconsidered' docs/architecture/layer-lock.md || fail "Figment maintenance decision not recorded"
-grep -q 'rust-cli/config-rs' docs/architecture/layer-lock.md || fail "live config library alternative not recorded"
+grep -q 'Componentized application composition lock' docs/architecture/layer-lock.md || fail "composition lock missing"
+grep -q 'Managed Content' docs/architecture/target-state.md || fail "target-state Managed Content capability missing"
+grep -q 'Extension/plugin composition' docs/architecture/target-state.md || fail "target-state extension capability missing"
+grep -q 'Figment' docs/architecture/dependencies.md || fail "Figment dependency decision not recorded"
+grep -q 'config-rs' docs/architecture/dependencies.md || fail "live config library alternative not recorded"
 
 echo "SEMANTIC_LAYER_LOCK_OK"
 echo "AUDIACORE_REVALIDATION_OK"

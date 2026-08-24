@@ -10,32 +10,32 @@ use audiacore_core::{Application, ExecutionContext};
 use audiacore_error_catalog::ErrorCatalogue;
 use audiacore_errors::{CodedError, ErrorCode};
 use audiacore_host::{FileHost, FileReadAuthority, FileWriteAuthority};
-use audiacore_managed_config::{
-    ManagedConfigApplyResult, ManagedConfigError, ManagedConfigTarget, apply, observe, plan,
+use audiacore_managed_content::{
+    ManagedContentApplyResult, ManagedContentError, ManagedContentTarget, apply, observe, plan,
 };
 use audiacore_sensitive::Sensitive;
 use audiacore_template::{TemplateContext, TemplateValue};
 
 const REDACTED: &str = "[REDACTED]";
 
-/// Desired input to the Stage 7 managed whole-file capability proof.
+/// Desired input to the Stage 7 Managed Content whole-file proof.
 ///
 /// This is a capability request, not application policy and not a
 /// configuration object. An application may derive it from validated policy,
 /// command-line input, tests, or another source. It carries no file authority
 /// and therefore cannot grant effects.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManagedConfigRequest {
-    target: ManagedConfigTarget,
+pub struct ManagedContentRequest {
+    target: ManagedContentTarget,
     desired: Option<Vec<u8>>,
 }
 
-impl ManagedConfigRequest {
-    pub fn new(target: ManagedConfigTarget, desired: Option<Vec<u8>>) -> Self {
+impl ManagedContentRequest {
+    pub fn new(target: ManagedContentTarget, desired: Option<Vec<u8>>) -> Self {
         Self { target, desired }
     }
 
-    pub fn target(&self) -> &ManagedConfigTarget {
+    pub fn target(&self) -> &ManagedContentTarget {
         &self.target
     }
 
@@ -49,14 +49,14 @@ impl ManagedConfigRequest {
 /// The host implementation, authorities, and error catalogue are caller-owned
 /// values. No ambient/global lookup is performed. This is not the canonical
 /// shape of future applications and must not accumulate unrelated capabilities.
-pub struct ManagedConfigComposition<H> {
+pub struct ManagedContentComposition<H> {
     host: H,
     read_authority: FileReadAuthority,
     write_authority: FileWriteAuthority,
     errors: ErrorCatalogue,
 }
 
-impl<H> ManagedConfigComposition<H> {
+impl<H> ManagedContentComposition<H> {
     pub fn new(
         host: H,
         read_authority: FileReadAuthority,
@@ -191,28 +191,28 @@ pub fn present_error<E: CodedError>(
     }
 }
 
-fn managed_config_result(result: ManagedConfigApplyResult) -> &'static str {
+fn managed_content_result(result: ManagedContentApplyResult) -> &'static str {
     match result {
-        ManagedConfigApplyResult::Noop => "noop",
-        ManagedConfigApplyResult::Created => "created",
-        ManagedConfigApplyResult::Replaced => "replaced",
-        ManagedConfigApplyResult::Deleted => "deleted",
+        ManagedContentApplyResult::Noop => "noop",
+        ManagedContentApplyResult::Created => "created",
+        ManagedContentApplyResult::Replaced => "replaced",
+        ManagedContentApplyResult::Deleted => "deleted",
     }
 }
 
-/// Execute the managed whole-file proof through an explicit request and
+/// Execute the Managed Content whole-file proof through an explicit request and
 /// independently supplied authority.
 ///
 /// Structured tracing is emitted only here, at the application edge. The lower
-/// managed-config, host, reconciliation, and core crates remain tracing free.
-pub fn execute_managed_config<H: FileHost>(
-    application: &Application<ManagedConfigComposition<H>>,
+/// Managed Content, host, reconciliation, and core crates remain tracing free.
+pub fn execute_managed_content<H: FileHost>(
+    application: &Application<ManagedContentComposition<H>>,
     execution: &ExecutionContext,
-    request: &ManagedConfigRequest,
-) -> Result<ManagedConfigApplyResult, ManagedConfigError<H::Error>> {
+    request: &ManagedContentRequest,
+) -> Result<ManagedContentApplyResult, ManagedContentError<H::Error>> {
     let composition = application.composition();
     let span = tracing::info_span!(
-        "managed_config.apply",
+        "managed_content.apply",
         application_id = %application.id(),
         execution_id = %execution.execution_id(),
         correlation_id = %execution.correlation_id(),
@@ -242,7 +242,7 @@ pub fn execute_managed_config<H: FileHost>(
         Ok(result) => {
             tracing::info!(
                 outcome = "success",
-                result = managed_config_result(result),
+                result = managed_content_result(result),
                 "completed"
             );
             Ok(result)
@@ -309,13 +309,13 @@ CON-PRESENT-001:
     #[test]
     fn presentation_failure_preserves_original_code_without_diagnostic_text() {
         let catalogue = ErrorCatalogue::new();
-        let error = ExampleError(ErrorCode::new("IO-MCONFIG-001"));
+        let error = ExampleError(ErrorCode::new("IO-MCONTENT-001"));
         let presented = present_error(&catalogue, &error, &MessageContext::new());
 
         assert!(!presented.configured());
         assert_eq!(presented.code(), error.code());
         assert_eq!(presented.kind(), "io");
-        assert_eq!(presented.message(), "Error IO-MCONFIG-001.");
+        assert_eq!(presented.message(), "Error IO-MCONTENT-001.");
         assert!(!presented.message().contains("missing"));
     }
 

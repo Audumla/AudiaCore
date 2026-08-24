@@ -9,7 +9,7 @@ use std::{
 };
 
 use audiacore_application::{
-    ManagedConfigComposition, ManagedConfigRequest, MessageContext, execute_managed_config,
+    ManagedContentComposition, ManagedContentRequest, MessageContext, execute_managed_content,
     present_error,
 };
 use audiacore_config::{ConfigLayerId, ConfigLayers};
@@ -18,7 +18,7 @@ use audiacore_error_catalog::ErrorCatalogue;
 use audiacore_errors::CodedError;
 use audiacore_host::{FileReadAuthority, FileWriteAuthority};
 use audiacore_host_native::NativeFileHost;
-use audiacore_managed_config::{ManagedConfigApplyResult, ManagedConfigTarget};
+use audiacore_managed_content::{ManagedContentApplyResult, ManagedContentTarget};
 use serde::Deserialize;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -95,12 +95,12 @@ desired = "configured-value"
         .resolve::<ProofConfig>()
         .unwrap();
 
-    let target = ManagedConfigTarget::new(resolved.value().managed.path.clone());
-    let request_from_config = ManagedConfigRequest::new(
+    let target = ManagedContentTarget::new(resolved.value().managed.path.clone());
+    let request_from_config = ManagedContentRequest::new(
         target.clone(),
         Some(resolved.value().managed.desired.as_bytes().to_vec()),
     );
-    let direct_request = ManagedConfigRequest::new(target, Some(b"configured-value".to_vec()));
+    let direct_request = ManagedContentRequest::new(target, Some(b"configured-value".to_vec()));
     assert_eq!(request_from_config, direct_request);
 
     let read_authority = FileReadAuthority::new(root.path().clone()).unwrap();
@@ -108,14 +108,14 @@ desired = "configured-value"
     let mut errors = ErrorCatalogue::new();
     errors
         .register_yaml(
-            "audiacore-managed-config/errors.yaml",
-            include_str!("../../audiacore-managed-config/errors.yaml"),
+            "audiacore-managed-content/errors.yaml",
+            include_str!("../../audiacore-managed-content/errors.yaml"),
         )
         .unwrap();
 
     let application = Application::new(
         ApplicationId::new("stage7-app").unwrap(),
-        ManagedConfigComposition::new(NativeFileHost, read_authority, write_authority, errors),
+        ManagedContentComposition::new(NativeFileHost, read_authority, write_authority, errors),
     );
     let execution = execution_context();
 
@@ -129,18 +129,18 @@ desired = "configured-value"
         .finish();
 
     let result = tracing::subscriber::with_default(subscriber, || {
-        execute_managed_config(&application, &execution, &request_from_config)
+        execute_managed_content(&application, &execution, &request_from_config)
     })
     .unwrap();
 
-    assert_eq!(result, ManagedConfigApplyResult::Created);
+    assert_eq!(result, ManagedContentApplyResult::Created);
     assert_eq!(
         fs::read(root.path().join("managed.conf")).unwrap(),
         b"configured-value"
     );
 
     let log = String::from_utf8(captured.lock().unwrap().clone()).unwrap();
-    assert!(log.contains("managed_config.apply"));
+    assert!(log.contains("managed_content.apply"));
     assert!(log.contains("application_id=stage7-app"));
     assert!(log.contains("execution_id=execution-7"));
     assert!(log.contains("correlation_id=correlation-7"));
@@ -148,10 +148,10 @@ desired = "configured-value"
     assert!(log.contains("result=\"created\"") || log.contains("result=created"));
     assert!(log.contains("completed"));
 
-    let outside_target = ManagedConfigTarget::new(PathBuf::from("..").join("outside.conf"));
-    let outside_request = ManagedConfigRequest::new(outside_target, Some(b"denied".to_vec()));
-    let error = execute_managed_config(&application, &execution, &outside_request).unwrap_err();
-    assert_eq!(error.code().as_str(), "IO-MCONFIG-001");
+    let outside_target = ManagedContentTarget::new(PathBuf::from("..").join("outside.conf"));
+    let outside_request = ManagedContentRequest::new(outside_target, Some(b"denied".to_vec()));
+    let error = execute_managed_content(&application, &execution, &outside_request).unwrap_err();
+    assert_eq!(error.code().as_str(), "IO-MCONTENT-001");
 
     let presented = present_error(
         application.composition().errors(),
@@ -161,8 +161,5 @@ desired = "configured-value"
     assert!(presented.configured());
     assert_eq!(presented.code(), error.code());
     assert_eq!(presented.kind(), "io");
-    assert_eq!(
-        presented.message(),
-        "Managed configuration host operation failed."
-    );
+    assert_eq!(presented.message(), "Managed Content host operation failed.");
 }

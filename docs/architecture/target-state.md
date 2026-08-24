@@ -1,55 +1,48 @@
 # AudiaCore target state
 
-Status: **TARGET CAPABILITY MAP — recovered after Stage 8**.
+Status: **TARGET CAPABILITY MAP — Stage 8 baseline**.
 
 This document records what the finished AudiaCore/AUDiaGentic platform must be
-capable of. It is intentionally separate from:
+capable of. It is separate from:
 
-- `revalidation.md`, which records what has already been proved and accepted;
-- `layer-lock.md`, which records where responsibilities may and may not live;
-- `roadmap.md`, which records the order in which missing capabilities should be
-  proved;
-- `dependencies.md`, which records dependency admission and health decisions.
+- `revalidation.md` — what Stage 0–8 proved and accepted;
+- `layer-lock.md` — where responsibilities may and may not live;
+- `roadmap.md` — the order in which missing target semantics should be proved;
+- `dependencies.md` — dependency admission and health decisions.
 
-A capability may be required here without existing in production code yet.
-Conversely, an accepted proof may exist only to establish a lower mechanism and
-need not be the final target abstraction.
+A target capability can be only partially implemented. Target naming does not
+imply that every future semantic of that capability already exists.
 
 ## Status vocabulary
 
-- **PROVEN** — implemented and accepted through Stage 8 for its stated scope.
-- **REQUIRED / DEFERRED** — part of the target state, but not implemented yet.
-- **PARTIAL** — lower primitives exist, but the target capability does not.
-- **HYPOTHESIS** — plausible future need that is not yet a committed target.
+- **PROVEN** — implemented and accepted for the stated scope.
+- **PARTIAL** — the target capability exists, but required target semantics remain.
+- **REQUIRED / DEFERRED** — committed target, not implemented yet.
+- **HYPOTHESIS** — plausible future need, not yet committed.
 - **REJECTED** — explicitly not part of the target architecture.
 
 ## Stage 8 foundation baseline
 
-The accepted Stage 8 foundation remains the architectural anchor. It already
-proves:
+Stage 8 proves:
 
-- application, execution, and correlation identity with opaque
-  `Application<C>` composition;
+- application/execution/correlation identity with opaque `Application<C>` composition;
 - stable coded error identity separated from human-facing presentation;
-- sensitive-value handling;
-- mapping-only templates;
+- sensitive-value handling and mapping-only templates;
 - pure desired-versus-observed reconciliation;
 - in-memory configuration resolution with ordered provenance;
-- narrow file and process host contracts with explicit authority scopes;
+- narrow file/process host contracts with explicit authority scopes;
 - native file/process adapters isolated from semantic layers;
-- typed event streams;
-- deterministic workflow transition primitives;
-- deterministic timer primitives;
-- a narrow whole-file desired-state capability in `audiacore-managed-config`;
+- typed event streams, workflow transitions, and deterministic timer primitives;
+- the **whole-file slice of Managed Content** in `audiacore-managed-content`;
 - caller-owned application-edge composition, presentation, and tracing;
 - dependency and supply-chain admission rules.
 
-These remain **PROVEN** and should not be reopened merely because higher target
-capabilities were not implemented during revalidation.
+These remain the architectural anchor. Missing higher target semantics do not by
+themselves justify reopening the foundation.
 
 ## Target capability map
 
-| Capability | Target status | Current state | Intended ownership |
+| Capability | Status | Current state | Intended ownership |
 | --- | --- | --- | --- |
 | Core identity + opaque composition | PROVEN | `audiacore-core` | core |
 | Stable error identity | PROVEN | `audiacore-errors` | foundation |
@@ -63,17 +56,16 @@ capabilities were not implemented during revalidation.
 | Events | PROVEN | `audiacore-events` | reusable capability |
 | Workflow transition primitives | PROVEN | `audiacore-workflow` | reusable capability |
 | Time/timer primitives | PROVEN | `audiacore-time` | reusable capability |
-| Managed whole-file desired state | PROVEN | `audiacore-managed-config` | lower capability/mechanism |
-| Managed Content | REQUIRED / DEFERRED | requirements known; not implemented | higher capability |
-| Probe / observation | REQUIRED / DEFERRED | not implemented | sibling capability |
-| Software lifecycle | REQUIRED / DEFERRED | not implemented | sibling capability |
+| Managed Content | PARTIAL | whole-file slice proven in `audiacore-managed-content`; structured/partial ownership deferred | application capability |
+| Probe / observation | REQUIRED / DEFERRED | absent | sibling capability |
+| Software lifecycle | REQUIRED / DEFERRED | absent | sibling capability |
 | Durable execution/orchestration | PARTIAL | workflow/events/time primitives only | application orchestration |
-| Operation receipts/evidence | PARTIAL | concept locked; target use not complete | capability/application boundary |
-| Artifacts / execution output | REQUIRED / DEFERRED | not implemented as target subsystem | application/runtime edge |
-| Componentized application composition | REQUIRED / DEFERRED | `Application<C>` seam proven; one concrete proof only | application/bootstrap edge |
+| Operation receipts/evidence | PARTIAL | concept locked; target use incomplete | capability/application boundary |
+| Artifacts / execution output | REQUIRED / DEFERRED | absent as target subsystem | application/runtime edge |
+| Componentized application composition | REQUIRED / DEFERRED | `Application<C>` seam proven; one concrete composition proof | application/bootstrap edge |
 | Extension/plugin composition | REQUIRED / DEFERRED | absent | application/bootstrap edge |
-| External extension sources | REQUIRED / DEFERRED | build-time Cargo sourcing only | extension/package layer |
-| Extension identity + compatibility metadata | REQUIRED / DEFERRED | absent | extension/package layer |
+| External extension sources | REQUIRED / DEFERRED | Cargo build-time sourcing only | extension/package layer |
+| Extension identity + compatibility | REQUIRED / DEFERRED | absent | extension/package layer |
 | Extension install/update/remove lifecycle | REQUIRED / DEFERRED | absent | extension/package layer |
 | Provider capability contract | REQUIRED / DEFERRED | absent | provider capability layer |
 | ACP-backed provider adapters | REQUIRED / DEFERRED | absent | provider/interop layer |
@@ -83,32 +75,26 @@ capabilities were not implemented during revalidation.
 | A2A surface | REQUIRED / DEFERRED | absent in AudiaCore | interoperability edge |
 | ASA surface | REQUIRED / DEFERRED | absent in AudiaCore | interoperability edge |
 | API / control-channel projections | REQUIRED / DEFERRED | absent in AudiaCore | application edge |
-| Runtime dynamic-library loading | HYPOTHESIS | absent | extension transport only if justified |
-| WASM plugin runtime | HYPOTHESIS | absent | extension transport only if justified |
+| Runtime dynamic-library loading | HYPOTHESIS | absent | extension transport if justified |
+| WASM plugin runtime | HYPOTHESIS | absent | extension transport if justified |
 | Global service locator/provider registry | REJECTED | intentionally absent | nowhere |
 | Generic manager framework | REJECTED | intentionally absent | nowhere |
 
-## Managed Config versus Managed Content
+## Managed Content target
 
-We have moved on to **Managed Content as the target capability**, but we have
-**not replaced `audiacore-managed-config` in code**.
-
-`audiacore-managed-config` is the accepted Stage 6D whole-file proof. It owns a
-small, useful lower mechanism:
+`audiacore-managed-content` is the canonical capability family name from Stage 8
+onward. Stage 8 proves only this slice:
 
 ```text
 optional whole-file observation
-        + desired bytes
-        -> pure plan
+        + desired optional bytes
+        -> pure reconcile plan
+        -> create | replace | delete | noop
         -> apply through explicit file authority
 ```
 
-It does not own partial content, contribution identity, structured member
-ownership, prune/restore semantics, coordinated multi-resource changes, or
-rollback/compensation.
-
-Managed Content is the target higher-level capability and must support the
-semantics already evidenced by AUDiaGentic recipes, including:
+The target capability must grow from that boundary to support requirements
+already evidenced by AUDiaGentic recipes:
 
 - whole-resource ownership where explicitly delegated;
 - structured object/member ownership;
@@ -120,150 +106,104 @@ semantics already evidenced by AUDiaGentic recipes, including:
 - coordinated multi-resource planning/application/verification;
 - ownership-aware prune;
 - explicit snapshot restore;
-- operation rollback/compensation;
-- auditable operation receipts.
+- rollback/compensation of failed operations;
+- auditable operation receipts/evidence.
 
-The current crate may later remain as a lower whole-file mechanism, be absorbed
-behind Managed Content, or be retired after an equivalent replacement is
-proved. Do not decide that by renaming the crate early. Do not grow Managed
-Content into `audiacore-managed-config` by accretion.
+The Stage 8 names `ManagedContentTarget`, `ManagedContentPlan`,
+`ManagedContentApplyResult`, and `ManagedContentError` describe the capability
+family and its current whole-file slice. They do **not** claim that partial or
+structured ownership is already implemented.
+
+Managed Content must not absorb configuration-source acquisition, application
+policy, filesystem authority, native I/O, software lifecycle, provider/session
+semantics, or recipe orchestration.
 
 ## Componentized composition target
 
-The target application is composed from explicit components at the
-application/bootstrap edge:
+The target application is composed explicitly at bootstrap:
 
 ```text
-configured sources / built-ins / external packages
-                    |
-                    v
-        resolution + compatibility validation
-                    |
-                    v
-          concrete implementations
-                    |
-                    v
-          explicit application composition
-                    |
-                    v
-              normal runtime
+configured / built-in / external sources
+                 |
+                 v
+      resolution + validation
+                 |
+                 v
+       concrete implementations
+                 |
+                 v
+       explicit composition
+                 |
+                 v
+           normal runtime
 ```
 
-After composition, ordinary consumers use typed contracts and direct injected
-collaborators. Discovery machinery is not a runtime service locator.
+After composition, consumers use typed contracts/direct collaborators. Discovery
+machinery is not a runtime service locator.
 
-The following identities remain distinct:
+Keep these identities distinct:
 
 - **Capability** — behaviour required by a caller.
-- **Component** — a composable implementation unit.
-- **Extension** — a distributable/discoverable contribution.
+- **Component** — composable implementation unit.
+- **Extension** — distributable/discoverable contribution.
 - **Package/source** — how an extension is obtained.
 - **Instance** — one configured runtime use of a component.
 
-For example:
-
-```text
-Capability:          AgentProvider
-Component:           ClaudeAcpProvider
-Extension:           audiagentic-provider-claude
-Package/source:      external Git/package/install source
-Configured instance: claude-primary
-```
-
-First-party and externally supplied implementations must use the same component
-seam after resolution. Core and reusable capability crates must not depend on
-extension discovery or package machinery.
+First-party and external implementations use the same component seam after
+resolution. Core and reusable capabilities do not depend on plugin discovery or
+package machinery.
 
 ## Extension source target
 
-Extensions are not tied to a repository-local `plugins/` directory. The target
-must be able to represent implementations obtained from different locations,
-including:
+Extensions are not tied to a repository-local `plugins/` directory. Target
+sources include built-in packages, other Git repositories, installed packages,
+and configured local/private locations.
 
-- built-in/first-party packages;
-- another Git repository;
-- an installed package;
-- a configured local/private location;
-- other package sources justified later.
-
-The first implementation step should prefer ordinary Rust crates and explicit
-build/startup composition. Runtime-loaded `.dll`/`.so`/`.dylib`, WASM, or
-out-of-process extension transports remain separate choices that require real
-compatibility, security, isolation, and deployment requirements before adoption.
+The first proof should prefer ordinary Rust crates and explicit build/startup
+composition. `.dll`/`.so`/`.dylib`, WASM, or out-of-process transports remain
+separate hypotheses until ABI, isolation, security, and deployment requirements
+justify one.
 
 ## Provider and interoperability target
 
-Providers are extension-friendly capability implementations, not special
-orchestration frameworks. Generic application logic must not be edited for every
-provider addition.
-
-The intended direction is:
+Providers are extension-friendly capability implementations, not orchestration
+frameworks:
 
 ```text
-application policy / orchestration
-            |
-            v
-   provider capability contract
-            |
-            v
-   provider implementation/extension
-            |
-            v
-        ACP where applicable
-            |
-            v
- provider/session transport
+application policy/orchestration
+          -> provider capability contract
+          -> provider implementation/extension
+          -> ACP where applicable
+          -> provider/session transport
 ```
 
-ACP, A2A, ASA, MCP, API, and control channels are interoperability or presentation
-surfaces around one canonical application/execution model. They must not each
-invent parallel workflow, task, authority, status, or persistence semantics.
+ACP, A2A, ASA, MCP, API, and control channels project one canonical
+application/execution model. They must not each invent parallel workflow,
+authority, persistence, status, or diagnostics semantics.
 
 ## Application orchestration target
 
-Higher application orchestration may combine:
-
-- configuration source acquisition and semantic interpretation;
-- probes/observation;
-- software lifecycle;
-- Managed Content;
-- provider/session capabilities;
-- workflows, timers, retries where explicitly required;
-- verification and compensation;
-- artifacts/output;
-- durable status and diagnostics projections.
-
-Capabilities do not load recipes or application definitions themselves.
-Recipes/use cases belong above capabilities.
+Higher orchestration may combine configuration source acquisition, probes,
+software lifecycle, Managed Content, provider/session capabilities, workflows,
+timers/retries where required, verification/compensation, artifacts/output, and
+durable status/diagnostics projections. Capabilities do not load recipes or
+application definitions themselves.
 
 ## Output and observability target
 
-Keep these separate throughout future stages:
-
-- domain events;
-- operation receipts/evidence;
-- operational tracing/logs;
-- execution output/artifacts;
-- public status/projections;
-- explicit diagnostics.
-
-A public status surface should remain a bounded projection of durable execution
-state, not a dump of diagnostic/internal provider state.
+Keep domain events, operation receipts/evidence, operational tracing, execution
+output/artifacts, public status projections, and explicit diagnostics separate.
+Public status is a bounded projection of durable execution state, not a dump of
+provider or diagnostic internals.
 
 ## Non-target architecture
 
-The target does **not** require:
+The target does **not** require a global component/provider/plugin registry,
+service locator or `get<T>()` container, universal manager abstraction, core
+knowledge of plugins/providers/recipes/config sources, configuration-granted
+authority, every component as a dynamic library, or separate execution models
+for ACP/A2A/ASA/MCP/API.
 
-- a global component/provider/plugin registry available to arbitrary runtime
-  code;
-- a service locator or `get<T>()` dependency container;
-- a universal `Manager` abstraction;
-- core knowledge of providers, recipes, plugin packages, files, or config
-  sources;
-- configuration that implicitly grants effect authority;
-- every first-party component becoming a runtime dynamic library;
-- five separate execution models for ACP/A2A/ASA/MCP/API.
-
-The target capability map may grow as concrete requirements are recovered, but a
-new target must state its owner, dependencies, exclusions, and relationship to
-the accepted Stage 8 layer lock before implementation begins.
+Update this map whenever a target is proved, split, superseded, or deliberately
+rejected. A new target must state its owner, dependencies, exclusions, and
+relationship to the Stage 8 layer lock before implementation begins.
