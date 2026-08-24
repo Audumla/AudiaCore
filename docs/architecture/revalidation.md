@@ -79,7 +79,7 @@ core
 | corrective | Configured errors + template contract | `9302e83bea79a7ce82d2fd542363ac1b79ed9f97` | #302 / `32559461700` | ACCEPTED |
 | 7 | Application composition/request/observability proof | `9ee04ce0d57aee0a00707765e894f245efaf3941` | #338 / `32566520037` | ACCEPTED |
 | 8 audit baseline | Full layer/dependency/supply-chain audit | `28ba554b1cd46bb56838ed5f9d9cc20a5881c391` | #446 / `32624993669` | ACCEPTED |
-| 8 closeout | Target-state recovery + Managed Content terminology | recorded after final validation | recorded after final validation | VALIDATING |
+| 8 closeout | Target-state recovery + Managed Content terminology | `8e8c6974d46f1c43a9c8119583aefc07f93a7f4a` | #453 / `32706313337` | ACCEPTED |
 
 ## What the stages established
 
@@ -146,17 +146,18 @@ must not accumulate every future capability in `audiacore-application`.
 ### Stage 8 — layer lock and target-state closeout
 
 The full repository audit established the accepted layer/dependency/supply-chain
-baseline at `28ba554b...` / run #446. The closeout then recovered the explicit
-target capability map and aligned active Managed Content terminology so future
-work does not carry a known rename/refactor debt.
+baseline at `28ba554b...` / run #446. The closeout recovered the explicit target
+capability map and aligned active Managed Content terminology so future work does
+not carry a known rename/refactor debt.
 
-The terminology closeout intentionally removes the active
-`audiacore-managed-config`, `ManagedConfig*`, `managed_config`, and
-`IO-MCONFIG-*` surfaces rather than retaining compatibility aliases. Git history
-preserves the original proof names.
+The terminology closeout removes the active `audiacore-managed-config`,
+`ManagedConfig*`, `managed_config`, and `IO-MCONFIG-*` surfaces rather than
+retaining compatibility aliases. Git history preserves the original proof names.
 
-Final Stage 8 closeout head and workflow are filled in after the complete
-cross-platform/supply-chain run passes.
+Closeout implementation head `8e8c6974d46f1c43a9c8119583aefc07f93a7f4a`
+passed workflow run `32706313337` (#453): direct dependency admission,
+formatting, Clippy, tests, semantic architecture gates, Stage 7 native proof on
+Ubuntu 24.04/macOS 15/Windows 2025, and the supply-chain gate all passed.
 
 ## Post-Stage-8 rule
 
