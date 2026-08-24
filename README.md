@@ -1,7 +1,15 @@
 # AudiaCore
 
-Clean-room Rust foundation used to revalidate the AUDiaGentic platform architecture from first principles.
+Clean-room Rust foundation used to revalidate and rebuild the AUDiaGentic platform architecture from first principles.
 
-The repository is intentionally built in explicit stages. A stage is accepted only when its design constraints, tests, architecture gates, and cross-platform CI are green before the next layer is introduced.
+Stages 0 through 8 are accepted and remain the foundation baseline. Future work builds upward from that baseline; required target capabilities may be documented before their implementation is earned.
 
-Stages 0 through 8 are accepted. See `docs/architecture/revalidation.md` for the acceptance record and evidence, and `docs/architecture/layer-lock.md` for the enduring semantic layer contract.
+Architecture documents have distinct roles:
+
+- `docs/architecture/revalidation.md` — accepted Stage 0–8 proof history and evidence;
+- `docs/architecture/layer-lock.md` — enduring semantic ownership and dependency rules;
+- `docs/architecture/target-state.md` — required, proved, deferred, hypothetical, and rejected target capabilities;
+- `docs/architecture/roadmap.md` — sequencing rules for proving missing target capabilities;
+- `docs/architecture/dependencies.md` — dependency admission and health decisions.
+
+The current `audiacore-managed-config` crate is an accepted narrow whole-file desired-state capability. **Managed Content** is the higher target capability and has not yet replaced that crate in code.
