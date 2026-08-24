@@ -285,7 +285,11 @@ impl fmt::Display for ErrorCatalogueError {
                 "duplicate error code {code} in {first_source} and {second_source}"
             ),
             Self::MissingDefinition { code } => {
-                write!(f, "no configured definition registered for {}", code.as_str())
+                write!(
+                    f,
+                    "no configured definition registered for {}",
+                    code.as_str()
+                )
             }
             Self::Render { code, .. } => write!(
                 f,
@@ -333,7 +337,9 @@ CON-EXAMPLE-002:
     #[test]
     fn code_owns_category_and_catalogue_owns_presentation() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("example/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("example/errors.yaml", BASE)
+            .unwrap();
 
         let rendered = catalogue
             .render(ErrorCode::new("CON-EXAMPLE-002"), &params())
@@ -357,7 +363,9 @@ CON-EXAMPLE-002:
     #[test]
     fn missing_required_params_fail_without_ambient_state() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("example/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("example/errors.yaml", BASE)
+            .unwrap();
         let error = catalogue
             .render(ErrorCode::new("CON-EXAMPLE-002"), &TemplateContext::new())
             .unwrap_err();
@@ -389,7 +397,9 @@ VAL-THING-001:
         let mut catalogue = ErrorCatalogue::new();
         catalogue.register_yaml("first/errors.yaml", BASE).unwrap();
         assert!(matches!(
-            catalogue.register_yaml("second/errors.yaml", BASE).unwrap_err(),
+            catalogue
+                .register_yaml("second/errors.yaml", BASE)
+                .unwrap_err(),
             ErrorCatalogueError::DuplicateCode { .. }
         ));
     }
@@ -397,7 +407,9 @@ VAL-THING-001:
     #[test]
     fn explicit_overlay_replaces_complete_definition() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue.register_yaml("example/errors.yaml", BASE).unwrap();
+        catalogue
+            .register_yaml("example/errors.yaml", BASE)
+            .unwrap();
         catalogue
             .overlay_yaml(
                 "project/errors.yaml",
