@@ -1,15 +1,20 @@
-//! Whole-file desired-state reconciliation over narrow file-host authority.
+//! Managed Content capability — Stage 8 whole-file slice.
 //!
-//! This capability observes optional bytes, plans desired presence through the
-//! pure reconciliation layer, and applies one resulting whole-file effect. It
-//! does not parse configuration, manage partial content, prove ownership of
-//! pre-existing files, watch files, retry operations, schedule work, or provide
-//! multi-writer concurrency guarantees.
+//! The target capability family is Managed Content. The Stage 8 implementation
+//! proves only whole-file desired-state reconciliation over narrow file-host
+//! authority: observe optional bytes, plan desired presence through the pure
+//! reconciliation layer, and apply one resulting whole-file effect.
+//!
+//! This slice does not parse structured formats, manage partial contributions,
+//! prove ownership of pre-existing files, prune or restore contributions,
+//! coordinate multiple resources, watch files, retry operations, schedule work,
+//! or provide multi-writer concurrency guarantees. Those semantics must be
+//! earned by later Managed Content proofs without weakening this boundary.
 //!
 //! `desired = None` means deletion of the entire target file. Callers must only
-//! use this capability where whole-file lifecycle responsibility has already
-//! been explicitly delegated. File authority permits an effect; it is not
-//! semantic ownership evidence.
+//! use this whole-file slice where lifecycle responsibility has already been
+//! explicitly delegated. File authority permits an effect; it is not semantic
+//! ownership evidence.
 
 use std::{
     error::Error,
@@ -21,14 +26,14 @@ use audiacore_errors::{CodedError, ErrorCode};
 use audiacore_host::{FileHost, FileReadAuthority, FileWriteAuthority};
 use audiacore_reconcile::{ReconcileAction, plan as reconcile_presence};
 
-const HOST_OPERATION_FAILED: ErrorCode = ErrorCode::new("IO-MCONFIG-001");
+const HOST_OPERATION_FAILED: ErrorCode = ErrorCode::new("IO-MCONTENT-001");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManagedConfigTarget {
+pub struct ManagedContentTarget {
     path: PathBuf,
 }
 
-impl ManagedConfigTarget {
+impl ManagedContentTarget {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
     }
@@ -39,13 +44,13 @@ impl ManagedConfigTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManagedConfigPlan {
-    target: ManagedConfigTarget,
+pub struct ManagedContentPlan {
+    target: ManagedContentTarget,
     action: ReconcileAction<Vec<u8>>,
 }
 
-impl ManagedConfigPlan {
-    pub fn target(&self) -> &ManagedConfigTarget {
+impl ManagedContentPlan {
+    pub fn target(&self) -> &ManagedContentTarget {
         &self.target
     }
 
@@ -55,7 +60,7 @@ impl ManagedConfigPlan {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ManagedConfigApplyResult {
+pub enum ManagedContentApplyResult {
     Noop,
     Created,
     Replaced,
@@ -63,11 +68,11 @@ pub enum ManagedConfigApplyResult {
 }
 
 #[derive(Debug)]
-pub enum ManagedConfigError<E> {
+pub enum ManagedContentError<E> {
     Host(E),
 }
 
-impl<E> CodedError for ManagedConfigError<E> {
+impl<E> CodedError for ManagedContentError<E> {
     fn code(&self) -> ErrorCode {
         match self {
             Self::Host(_) => HOST_OPERATION_FAILED,
@@ -75,15 +80,15 @@ impl<E> CodedError for ManagedConfigError<E> {
     }
 }
 
-impl<E: fmt::Display> fmt::Display for ManagedConfigError<E> {
+impl<E: fmt::Display> fmt::Display for ManagedContentError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Host(error) => write!(f, "managed whole-file host error: {error}"),
+            Self::Host(error) => write!(f, "Managed Content whole-file host error: {error}"),
         }
     }
 }
 
-impl<E: Error + 'static> Error for ManagedConfigError<E> {
+impl<E: Error + 'static> Error for ManagedContentError<E> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Host(error) => Some(error),
@@ -94,18 +99,18 @@ impl<E: Error + 'static> Error for ManagedConfigError<E> {
 pub fn observe<H: FileHost>(
     host: &H,
     authority: &FileReadAuthority,
-    target: &ManagedConfigTarget,
-) -> Result<Option<Vec<u8>>, ManagedConfigError<H::Error>> {
+    target: &ManagedContentTarget,
+) -> Result<Option<Vec<u8>>, ManagedContentError<H::Error>> {
     host.read_optional(authority, target.path())
-        .map_err(ManagedConfigError::Host)
+        .map_err(ManagedContentError::Host)
 }
 
 pub fn plan(
-    target: &ManagedConfigTarget,
+    target: &ManagedContentTarget,
     observed: &Option<Vec<u8>>,
     desired: &Option<Vec<u8>>,
-) -> ManagedConfigPlan {
-    ManagedConfigPlan {
+) -> ManagedContentPlan {
+    ManagedContentPlan {
         target: target.clone(),
         action: reconcile_presence(desired.as_ref(), observed.as_ref()),
     }
@@ -114,24 +119,24 @@ pub fn plan(
 pub fn apply<H: FileHost>(
     host: &H,
     authority: &FileWriteAuthority,
-    plan: &ManagedConfigPlan,
-) -> Result<ManagedConfigApplyResult, ManagedConfigError<H::Error>> {
+    plan: &ManagedContentPlan,
+) -> Result<ManagedContentApplyResult, ManagedContentError<H::Error>> {
     match plan.action() {
-        ReconcileAction::Noop => Ok(ManagedConfigApplyResult::Noop),
+        ReconcileAction::Noop => Ok(ManagedContentApplyResult::Noop),
         ReconcileAction::Create(bytes) => {
             host.write(authority, plan.target().path(), bytes)
-                .map_err(ManagedConfigError::Host)?;
-            Ok(ManagedConfigApplyResult::Created)
+                .map_err(ManagedContentError::Host)?;
+            Ok(ManagedContentApplyResult::Created)
         }
         ReconcileAction::Replace(bytes) => {
             host.write(authority, plan.target().path(), bytes)
-                .map_err(ManagedConfigError::Host)?;
-            Ok(ManagedConfigApplyResult::Replaced)
+                .map_err(ManagedContentError::Host)?;
+            Ok(ManagedContentApplyResult::Replaced)
         }
         ReconcileAction::Delete => {
             host.remove(authority, plan.target().path())
-                .map_err(ManagedConfigError::Host)?;
-            Ok(ManagedConfigApplyResult::Deleted)
+                .map_err(ManagedContentError::Host)?;
+            Ok(ManagedContentApplyResult::Deleted)
         }
     }
 }
@@ -205,12 +210,12 @@ mod tests {
 
     #[cfg(windows)]
     fn authority_root() -> PathBuf {
-        PathBuf::from(r"C:\audiacore-managed-config-test")
+        PathBuf::from(r"C:\audiacore-managed-content-test")
     }
 
     #[cfg(not(windows))]
     fn authority_root() -> PathBuf {
-        PathBuf::from("/audiacore-managed-config-test")
+        PathBuf::from("/audiacore-managed-content-test")
     }
 
     fn read_authority() -> FileReadAuthority {
@@ -221,8 +226,8 @@ mod tests {
         FileWriteAuthority::new(authority_root()).unwrap()
     }
 
-    fn target() -> ManagedConfigTarget {
-        ManagedConfigTarget::new("app.conf")
+    fn target() -> ManagedContentTarget {
+        ManagedContentTarget::new("app.conf")
     }
 
     #[test]
@@ -235,21 +240,21 @@ mod tests {
         assert_eq!(create.target(), &target);
         assert_eq!(
             apply(&host, &write_authority(), &create).unwrap(),
-            ManagedConfigApplyResult::Created
+            ManagedContentApplyResult::Created
         );
 
         let observed = observe(&host, &read_authority(), &target).unwrap();
         let replace = plan(&target, &observed, &Some(b"two".to_vec()));
         assert_eq!(
             apply(&host, &write_authority(), &replace).unwrap(),
-            ManagedConfigApplyResult::Replaced
+            ManagedContentApplyResult::Replaced
         );
 
         let observed = observe(&host, &read_authority(), &target).unwrap();
         let delete = plan(&target, &observed, &None);
         assert_eq!(
             apply(&host, &write_authority(), &delete).unwrap(),
-            ManagedConfigApplyResult::Deleted
+            ManagedContentApplyResult::Deleted
         );
         assert_eq!(observe(&host, &read_authority(), &target).unwrap(), None);
     }
@@ -266,7 +271,7 @@ mod tests {
         assert_eq!(planned.action(), &ReconcileAction::Noop);
         assert_eq!(
             apply(&host, &write_authority(), &planned).unwrap(),
-            ManagedConfigApplyResult::Noop
+            ManagedContentApplyResult::Noop
         );
         assert_eq!(
             observe(&host, &read_authority(), &target).unwrap(),
@@ -276,7 +281,7 @@ mod tests {
 
     #[test]
     fn plan_carries_the_exact_target_used_for_application() {
-        let target = ManagedConfigTarget::new("one.conf");
+        let target = ManagedContentTarget::new("one.conf");
         let planned = plan(&target, &None, &Some(b"value".to_vec()));
 
         assert_eq!(planned.target(), &target);
@@ -290,7 +295,7 @@ mod tests {
     fn observe_and_apply_host_failures_share_stable_boundary_identity() {
         let target = target();
         let observe_error = observe(&FailingFileHost, &read_authority(), &target).unwrap_err();
-        assert_eq!(observe_error.code().as_str(), "IO-MCONFIG-001");
+        assert_eq!(observe_error.code().as_str(), "IO-MCONTENT-001");
         assert_eq!(
             observe_error.source().unwrap().to_string(),
             "observe failed"
@@ -298,7 +303,7 @@ mod tests {
 
         let planned = plan(&target, &None, &Some(b"value".to_vec()));
         let apply_error = apply(&FailingFileHost, &write_authority(), &planned).unwrap_err();
-        assert_eq!(apply_error.code().as_str(), "IO-MCONFIG-001");
+        assert_eq!(apply_error.code().as_str(), "IO-MCONTENT-001");
         assert_eq!(apply_error.source().unwrap().to_string(), "write failed");
     }
 }

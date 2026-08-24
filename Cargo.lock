@@ -18,7 +18,7 @@ dependencies = [
  "audiacore-errors",
  "audiacore-host",
  "audiacore-host-native",
- "audiacore-managed-config",
+ "audiacore-managed-content",
  "audiacore-sensitive",
  "audiacore-template",
  "serde",
@@ -79,7 +79,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "audiacore-managed-config"
+name = "audiacore-managed-content"
 version = "0.1.0"
 dependencies = [
  "audiacore-errors",

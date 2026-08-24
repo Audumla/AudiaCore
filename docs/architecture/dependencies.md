@@ -1,332 +1,197 @@
-# Third-party dependency decisions
+# AudiaCore dependency decisions
 
-Status: Stage 8 dependency lock under validation.
+Status: Stage 8 dependency and supply-chain policy **ACCEPTED**.
 
-Reviewed: 2026-08-23.
+Reviewed baseline: 2026-08-23. Current target capability implications are tracked
+in `target-state.md`; this document records dependency admission and health
+choices only.
 
-This record covers direct Rust crates, important transitive/security implications,
-CI actions, and near-term libraries that could replace custom infrastructure.
-The question is not only whether a dependency works. It must be maintained,
-proportionate, compatible with AudiaCore's layer boundaries, and preferable to
-both credible alternatives and writing/retaining custom infrastructure.
+## Admission rule
 
-## Acceptance rule
+A new direct third-party dependency is rejected unless its role is concrete and
+all of the following are acceptable:
 
-A new third-party dependency is rejected unless all of the following are true:
+- active maintenance or credible current organizational stewardship;
+- no unresolved abandonment/deprecation/supersession concern;
+- security response/provenance appropriate to the role;
+- compatible license;
+- supported MSRV and Ubuntu/macOS/Windows matrix;
+- proportionate enabled feature and transitive surface;
+- acceptable required transitive dependency health;
+- correct semantic layer placement;
+- credible alternatives, including std/no dependency, considered.
 
-- it has active maintenance or credible current organizational stewardship;
-- it is not archived, abandoned, superseded, or on a clearly stale line;
-- its security response and provenance are acceptable for its role;
-- its license is compatible with the repository;
-- its MSRV and Ubuntu/macOS/Windows support fit AudiaCore;
-- its default and enabled feature surface is proportionate;
-- its transitive dependency cost is understood;
-- its required transitive dependencies also satisfy the maintenance/security rule;
-- using it preserves the semantic layer boundary where it is introduced;
-- credible alternatives, including using the standard library or no dependency,
-  have been considered;
-- the reason to use, defer, or reject it is recorded here.
+A useful API or popular crate is insufficient when maintenance/security or layer
+fit is poor.
 
-A healthy top-level crate does not excuse a stale required transitive dependency.
-The full enabled runtime/build graph is part of the dependency decision.
+## Locking and governance
 
-Maintenance is judged in context. A mature stable crate does not need weekly
-releases, but there must be credible evidence that security and compatibility
-issues can still be handled. Popularity alone is not maintenance evidence.
+AudiaCore uses complementary controls:
 
-## Locking model
+1. root `[workspace.dependencies]` is the single approval point for direct
+   third-party Rust dependencies;
+2. member crates inherit approved dependencies with `workspace = true`;
+3. direct local path dependencies must resolve to declared workspace members;
+4. `Cargo.lock` is committed and CI uses the exact resolved graph;
+5. `scripts/check-dependency-admission.py` covers normal/dev/build/target-specific
+   direct dependency tables;
+6. committed `deny.toml` plus SHA-pinned `cargo-deny` CI gates advisories,
+   licenses, and dependency sources;
+7. GitHub Actions are dependencies and accepted actions use immutable full SHAs.
 
-AudiaCore uses two complementary locks:
+Git dependencies remain rejected by the supply-chain policy unless deliberately
+approved. A future external extension/package proof may justify changing that
+policy, but extension sourcing must not silently bypass dependency admission.
 
-1. `[workspace.dependencies]` is the single approval point for direct
-   third-party Rust dependencies. Member crates inherit these declarations and
-   may only add narrowly required features.
-2. `Cargo.lock` is committed and CI uses `--locked`, fixing the exact resolved
-   build including transitive crates.
+## Current approved direct Rust dependencies
 
-Workspace version requirements are normal Cargo compatibility requirements, not
-`=` pins. Exact pins in every manifest make legitimate ecosystem resolution
-harder and do not replace the lockfile. A lockfile change is a dependency change
-and requires review against this record.
+The current workspace approval set is:
 
-GitHub Actions are dependencies too. Accepted actions must use immutable full
-commit SHAs, with the human-readable release/version recorded in a comment.
-Prefer removing an action when standard runner tooling provides the same narrow
-function safely.
+| Dependency | Accepted role | Boundary |
+| --- | --- | --- |
+| `cap-std 4.0.3` | capability-relative filesystem implementation | `audiacore-host-native` only |
+| `serde 1.0.229` | typed serialization/deserialization data boundary | no source/policy semantics |
+| `serde_json 1.0.151` | deterministic JSON-like template context values | pure in-memory values |
+| `toml 1.1.4` | parse already-acquired TOML for config resolution | no file/env/source acquisition |
+| `tracing 0.1.44` | structured instrumentation at proven edges | no subscriber ownership in lower libraries |
+| `tracing-subscriber 0.3.23` | executable/proof subscriber setup | edge/dev support only |
+| `yaml_serde 0.10.7` | strict owner-supplied `errors.yaml` deserialization | error presentation metadata only |
 
-## Current direct Rust dependencies
+No current approved direct dependency is intentionally retained after being
+identified as dead or superseded.
 
-### serde — KEEP
+## Current key decisions
 
-Role: typed serialization/deserialization boundary.
+### `cap-std` — KEEP, native host only
 
-Why: Serde is the ecosystem-standard data model used by the TOML, JSON and YAML
-adapters. Replacing it would increase coupling and custom conversion code.
-Narrow alternatives such as miniserde do not provide an equivalent general
-interface; format- or layout-specific systems such as borsh/rkyv solve different
-problems.
+`cap-std` provides the capability-relative filesystem model required by the
+native file adapter and is maintained in the Bytecode Alliance ecosystem. It
+must not leak into host contracts, capability semantics, Managed Content, or
+application policy.
 
-Boundary: data conversion only. Serde must not become config source discovery,
-application policy, or persistence semantics.
+### Serde / serde_json — KEEP
 
-Accepted workspace line: `1.0.229`.
+Serde remains the ecosystem-standard typed data boundary. `serde_json` remains a
+small fit for explicit JSON-like template values and avoids inventing a generic
+nested value tree.
 
-### serde_json — KEEP
+Neither dependency grants config-source, persistence, or application-policy
+semantics.
 
-Role: deterministic caller-supplied value/mapping tree for template context.
+### `toml` — KEEP for current config resolution
 
-Why: the template capability genuinely needs nested maps, sequences and scalar
-values plus stable JSON rendering of non-string values. Keeping `serde_json`
-avoids inventing a generic value tree and numeric/string renderer. `simd-json`
-is performance-specialized and materially heavier for a non-throughput-critical
-presentation primitive.
+The current resolver parses already-acquired TOML and records AudiaCore-specific
+ordered provenance. It does not acquire files or environment sources.
 
-Boundary: pure in-memory values only.
+`toml_edit` remains a plausible candidate for a future **Managed Content** TOML
+adapter when format-preserving mutation becomes a real requirement. That target
+is not a reason to add `toml_edit` to `audiacore-config` now.
 
-Accepted workspace line: `1.0.151`.
+### `yaml_serde` — KEEP narrowly, continue monitoring
 
-### toml — KEEP FOR PARSE/RESOLUTION
+The current YAML use is intentionally small and schema-constrained: caller-owned
+error catalogue metadata only.
 
-Role: parse already-acquired TOML into the current deterministic config resolver.
+The Stage 8 review considered stronger/younger alternatives. `serde-saphyr`
+remains the leading future challenger because of its defensive parser controls,
+but its then-published required graph included stale `arraydeque 0.5.1`, which
+failed AudiaCore's admission rule. Re-evaluate when that path is removed or
+replaced.
 
-Why: it is the maintained canonical TOML implementation and the current manifest
-disables default features, enabling only `std`, `serde`, and `parse`.
-
-Alternative: `toml_edit` is the preferred established candidate when a future
-Managed Content format adapter needs format-preserving TOML mutation. That is a
-higher capability and is not a reason to introduce `toml_edit` into the config
-resolver now.
-
-Boundary: `audiacore-config` must not acquire files, environment, network sources,
-or application policy.
-
-Accepted workspace line: `1.1.4`.
-
-### yaml_serde — KEEP, NARROWLY SCOPED AND WATCHED
-
-Role: strict deserialization of caller-supplied owner-local `errors.yaml` files.
-
-Decision basis: this is not a choice of an old incumbent over newer Rust parsers.
-The alternatives were reviewed and a real `serde-saphyr` replacement proof was
-run. `yaml_serde` currently wins the combined maintenance, governance,
-proportionality and compatibility decision for this specific tiny catalogue.
-
-Why keep it now:
-
-- the YAML Organization actively maintains the current `yaml-serde` line;
-- it carries the mature `serde_yaml` API/compatibility lineage without depending
-  on the deprecated original crate;
-- its required parser backend is `libyaml-rs`, a Rust translation maintained
-  under the YAML Organization, not a linked C libyaml dependency;
-- the enabled graph is relatively small;
-- required transitives checked during Stage 8 (`libyaml-rs`, `indexmap`, `itoa`,
-  `ryu`) have current stewardship/activity appropriate to their role;
-- our use is deliberately tiny: caller-supplied, schema-constrained error
-  presentation metadata with no source discovery or general YAML ingestion.
-
-The use of YAML remains constrained. It must not silently expand into a generic
-configuration/source format simply because a parser is already present.
-
-#### serde-saphyr — FUNCTIONALLY STRONGER, CURRENTLY BLOCKED
-
-`serde-saphyr` was treated as a serious replacement candidate. The published
-`1.1.0` line is pure Rust and `#![forbid(unsafe_code)]`, has direct typed Serde
-deserialization, duplicate-key policy, merge-key policy, structural/input
-budgets, alias replay limits, cross-platform CI, API-compatibility checks, Miri,
-fuzzing and strong YAML-suite coverage. For hostile or broadly sourced YAML its
-defensive parser controls are materially better than the API we currently use.
-
-An isolated AudiaCore proof aliased published `serde-saphyr 1.1.0` as the current
-`yaml_serde` crate name, leaving production source unchanged. On Ubuntu, macOS
-and Windows it resolved successfully and the Stage 7 end-to-end proof passed.
-The only direct source integration issue found was that its larger parser error
-would be better boxed in `ErrorCatalogueError`, which is a small and reasonable
-change rather than a behavioral incompatibility.
-
-It is not accepted today because its required graph contains:
-
-`serde-saphyr 1.1.0 -> granit-parser 1.1.0 -> arraydeque 0.5.1`.
-
-The upstream `arraydeque` repository was last pushed on 2024-01-14. That fails
-AudiaCore's rule for a newly introduced required transitive dependency. The
-other newly introduced proof transitives checked during the audit
-(`encoding_rs_io`, `encoding_rs`, `smallvec`, `num-traits`,
-`annotate-snippets`, `anstyle`, `unicode-width`, `autocfg`) all showed current
-2026 maintenance activity.
-
-`serde-saphyr` must be re-evaluated promptly if a published release removes or
-replaces the stale `arraydeque` path. Its stronger defensive parser model makes
-it the leading challenger, not a rejected design.
-
-The repository's current main advertised `1.2.0` during the review, but that
-version was not yet available from crates.io, so unreleased-main functionality
-was not counted as an adoptable dependency.
-
-#### noyalib — DEFER / WATCH
-
-`noyalib` is a credible pure-Rust YAML 1.2 project and is unusually serious for
-its age: published `0.0.27`, active development, thousands of tests, reported
-406/406 YAML-suite conformance, supply-chain/audit tooling and external
-contributions. Its minimal library graph is also intentionally measured by its
-maintainers.
-
-It is not selected for this foundation boundary today because the project was
-created in February 2026, remains on a rapidly changing `0.0.x` API line, has
-much broader ambitions/surface (lossless CST/editing, schema and ecosystem
-features) than our strict error-catalogue parser needs, and stewardship remains
-more concentrated than the YAML Organization alternative. Re-evaluate as its API
-and governance mature, especially if future Managed Content needs lossless YAML
-editing; that future capability is a different selection problem from the
-current error-catalogue parser.
-
-#### saneyaml — DEFER / WATCH
-
-`saneyaml 0.3.1` is pure Rust, forbids unsafe code, is Serde-first and explicitly
-targets safer YAML 1.2 configuration. It is also very young: the repository was
-created in June 2026 and currently has very little external adoption/governance
-evidence. Its core dependency set additionally includes `atomic-write-file`,
-which is not proportionate to our read-only error-catalogue parsing use.
-Re-evaluate only after substantially more release and stewardship history.
-
-#### Other YAML alternatives
-
-- `serde_yaml`: REJECT — original line is deprecated/unmaintained.
-- `serde_yml`: REJECT — deprecated/unmaintained and affected by its published
-  maintenance/soundness advisory history.
-- `serde_yaml_ng` and similar legacy forks: REJECT for this use where they retain
-  an unmaintained unsafe-libyaml dependency chain.
-- `yaml-rust2`: DEFER as a lower-level parser, not a Serde-integrated replacement;
-  wrapping it ourselves would rebuild typed-deserialization machinery already
-  available in maintained libraries.
-- changing `errors.yaml` to another format: DEFER — no architectural benefit is
-  currently demonstrated that justifies format churn.
-
-Boundary: error presentation metadata only; no file discovery or general config
-source semantics.
-
-Accepted workspace line: `0.10.7`.
-
-### tracing — KEEP
-
-Role: structured operational instrumentation at proven application edges.
-
-Why: actively maintained in the Tokio ecosystem; spans and structured fields are
-needed and are not supplied by the `log` facade. `slog` would introduce another
-logging framework. OpenTelemetry is complementary export/semantic machinery, not
-a replacement for in-process instrumentation.
-
-Boundary: libraries do not own subscribers/exporters. Stable Audia fields are
-kept small and OpenTelemetry conventions are reused where applicable.
-
-Accepted workspace line: `0.1.44`.
-
-### tracing-subscriber — KEEP AS DEV/EDGE SUPPORT
-
-Role: Stage 7 proof subscriber and future executable/application-edge setup.
-
-Why: canonical subscriber ecosystem for `tracing`. It must not move into pure or
-host/capability layers.
-
-Accepted workspace line: `0.3.23`.
-
-### cap-std — ADOPTED, NATIVE HOST ONLY
-
-Role: capability-relative filesystem effects inside `audiacore-host-native`.
-
-Why: Bytecode Alliance maintained, capability-oriented, cross-platform, no
-default features, and directly addresses race-resistant path traversal and
-authority-relative filesystem access. It replaces AudiaCore's custom native path
-canonicalization/containment mechanics without moving capability types into the
-public `FileHost` contract or higher layers.
-
-Alternatives considered included `openat` (less portable/multi-component),
-`pathrs` (Linux-specific), Unix-fd-oriented approaches, and retaining custom
-canonicalization. None has a better fit for the required Ubuntu/macOS/Windows
-adapter.
-
-Validation: the production adoption checkpoint `d64e9f98d376230608806a5eb2e604626efa514a`
-preserves authority separation, capability-relative read/write/remove, symlink
-escape prevention, atomic replacement, temporary-file collision handling, and
-Stage 7 behavior. GitHub Actions run `32622399244` passed the immutable
-foundation/capability revalidation and Stage 7 proof on Ubuntu 24.04, macOS 15,
-and Windows 2025.
-
-Boundary: `cap-std` is an implementation dependency of `audiacore-host-native`
-only. It must not leak into `audiacore-host`, application capabilities, or policy.
-
-Accepted workspace line: `4.0.3` with default features disabled.
+`noyalib` and `saneyaml` remain watch/defer candidates rather than accepted
+foundation dependencies because their 2026 projects/APIs were still too young
+for this boundary. Original `serde_yaml`/`serde_yml` lines remain rejected as
+unmaintained/deprecated choices.
+
+A future Managed Content YAML editing requirement is a different dependency
+selection problem from the present read-only error catalogue use.
+
+### `tracing` / `tracing-subscriber` — KEEP at the edge
+
+Libraries emit structured instrumentation only where a proven consumer requires
+it. Subscriber/exporter installation belongs to an executable/application edge.
+Do not introduce a logging/telemetry manager abstraction.
 
 ## Evaluated but not current direct dependencies
 
 ### Figment — REJECT
 
-The API fits layered configuration well, but its maintenance activity is too
-stale for a new foundational dependency under AudiaCore's dependency-health
-rule. API quality does not override maintenance risk.
+Its provider/layer/extraction API overlaps configuration needs, but the reviewed
+maintenance activity was too stale for a new foundational dependency. API fit
+does not override the maintenance gate.
 
-### config-rs — DEFER / PRIMARY CONFIG-SOURCE CANDIDATE
+### `config-rs` — DEFER / preferred config-source candidate
 
-Actively maintained and mature. It owns source collection/layering such as files
-and environment. Current `audiacore-config` intentionally resolves
-already-acquired content and records AudiaCore-specific exact ordered-input
-provenance, so adopting config-rs inside that pure resolver would blur the source
-boundary. Re-evaluate when a concrete application needs source acquisition.
+`config-rs` is actively maintained and mature. It is a better candidate than
+building custom file/environment/other source-provider infrastructure when a
+real application source-acquisition consumer exists.
 
-### thiserror — DEFER
+Do not add it inside `audiacore-config` merely because config sources are a
+target capability; source acquisition belongs at the application/source edge.
 
-Actively maintained and suitable for deriving Rust error boilerplate, but it does
-not replace stable `CodedError` identity or configured error presentation. Add it
-only if hand-written conversion/display boilerplate becomes a demonstrated cost.
+### `thiserror` — DEFER
 
-### miette — DEFER TO PRESENTATION EDGE
+Useful for Rust error boilerplate but unnecessary while hand-written typed errors
+remain small. It would not replace stable `CodedError` identity or configured
+error presentation.
 
-Useful for rich CLI diagnostics, not a replacement for AudiaCore error identity
-or configured message catalogues. Introduce only with a real CLI/application
-presentation consumer.
+### `miette` — DEFER to a real presentation consumer
 
-## CI and supply-chain tooling
+Potentially useful for rich CLI presentation, but not part of error identity or
+capability semantics.
 
-### actions/checkout — KEEP, SHA-PINNED
+## Extension/package dependency implications
 
-Correct PR/ref checkout is CI machinery we should not reproduce. The prior
-floating `actions/checkout@v4` also targeted a deprecated Node runtime.
+The target state includes implementations sourced from other repositories or
+locations. That does **not** mean foundation member crates should directly
+path-depend on arbitrary folders or acquire ad hoc Git dependencies.
 
-Accepted and validated on Ubuntu, macOS and Windows: checkout v7.0.1 at immutable
-commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+The initial extension proof should keep these concerns separate:
 
-### dtolnay/rust-toolchain — REMOVED
+- capability/component contract;
+- extension identity and compatibility metadata;
+- package/source identity;
+- build/startup composition;
+- dependency/source admission.
 
-The project already has `rust-toolchain.toml` pinned to Rust 1.95.0, minimal
-profile, rustfmt and clippy. GitHub hosted runners provide rustup. The third-party
-action was removed and replaced with a direct `rustup toolchain install` command;
-that setup was validated on Ubuntu, macOS and Windows.
+If Cargo Git dependencies are selected for an external extension proof, update
+both the direct-admission policy and `cargo-deny` source policy deliberately and
+record the repository/revision trust model. Do not loosen source policy globally
+without a concrete extension consumer.
 
-### cargo-deny — CANDIDATE SUPPLY-CHAIN GATE
+Runtime dynamic libraries, WASM components, and out-of-process extensions are
+not current dependency decisions.
 
-Actively maintained and combines RustSec advisories, license checks, source
-restrictions and dependency bans. This is preferable to adding several
-independent scanners if its configuration can remain narrow and deterministic.
-If introduced, its action or binary version must itself be immutable/pinned.
-Do not add it merely for a badge; first define the license/source/advisory policy
-we expect it to enforce.
+## Build-versus-buy trigger
+
+Reopen dependency evaluation before AudiaCore grows custom infrastructure that
+overlaps a healthy maintained ecosystem project, especially for:
+
+- config source acquisition;
+- package/source resolution;
+- structured document editing;
+- protocol clients/transports;
+- persistence;
+- plugin/runtime loading;
+- tracing/export integration.
+
+The same rule applies in reverse: do not add a broad framework before a concrete
+consumer demonstrates that a narrow in-house contract plus existing ecosystem
+implementation is insufficient.
 
 ## Future review triggers
 
-Re-open this record when any of the following occurs:
+Re-open this record when:
 
-- a direct dependency or GitHub Action is added, removed or materially upgraded;
-- a current dependency becomes archived, superseded or materially inactive;
-- a required transitive dependency becomes stale or is replaced;
-- a security advisory affects an accepted line;
-- enabled features or transitive dependencies materially expand;
+- a direct dependency/action is added, removed, or materially upgraded;
+- an accepted dependency becomes stale, archived, superseded, or vulnerable;
+- enabled features/transitives materially expand;
 - the MSRV/platform matrix changes;
-- custom AudiaCore code grows into functionality already provided by a healthy
-  established library;
-- a published `serde-saphyr` release removes/replaces its stale `arraydeque`
-  transitive;
-- YAML/config/filesystem inputs become less trusted or substantially broader.
+- a target capability reaches implementation and needs an ecosystem library;
+- an external extension proof requires a new Cargo/source trust model;
+- `serde-saphyr` removes/replaces the stale transitive that blocked adoption;
+- YAML/config/filesystem inputs become broader or less trusted.
 
-Stage 8 is not dependency-locked until the current semantic logging gate,
-`cap-std` native-host decision, mechanical direct-dependency allow-list and
-transitive advisory/license/source gate have all been independently validated on
-the supported platforms.
+The Stage 8 accepted dependency baseline is part of the foundation lock, but it
+is not a prohibition on future dependencies. New dependencies must be earned by
+real target capability work and admitted at the correct layer.

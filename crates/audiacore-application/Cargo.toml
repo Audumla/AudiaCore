@@ -11,7 +11,7 @@ audiacore-core = { path = "../audiacore-core" }
 audiacore-error-catalog = { path = "../audiacore-error-catalog" }
 audiacore-errors = { path = "../audiacore-errors" }
 audiacore-host = { path = "../audiacore-host" }
-audiacore-managed-config = { path = "../audiacore-managed-config" }
+audiacore-managed-content = { path = "../audiacore-managed-content" }
 audiacore-sensitive = { path = "../audiacore-sensitive" }
 audiacore-template = { path = "../audiacore-template" }
 tracing = { workspace = true }
