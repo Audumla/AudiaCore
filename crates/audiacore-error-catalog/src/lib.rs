@@ -1,10 +1,8 @@
 //! Caller-owned configured error definitions and rendering.
 //!
-//! Stable error identity remains in `audiacore-errors`. This crate owns only
-//! presentation metadata loaded from caller-supplied YAML: kind, canonical
-//! message template, and resolution. It performs no discovery or I/O, keeps no
-//! global registry, and never exposes diagnostic error details implicitly to
-//! templates.
+//! Stable error code/category identity remains in `audiacore-errors`. This crate
+//! owns caller-supplied canonical messages, resolutions, and definition-source
+//! provenance. It performs no discovery or I/O and keeps no global registry.
 
 use std::{collections::BTreeMap, error::Error, fmt};
 
@@ -17,17 +15,12 @@ use serde::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ErrorDefinition {
-    kind: String,
     message: Template,
     resolution: String,
     source: String,
 }
 
 impl ErrorDefinition {
-    pub fn kind(&self) -> &str {
-        &self.kind
-    }
-
     pub fn resolution(&self) -> &str {
         &self.resolution
     }
@@ -40,7 +33,6 @@ impl ErrorDefinition {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderedError {
     code: ErrorCode,
-    kind: String,
     message: String,
     resolution: String,
 }
@@ -50,8 +42,8 @@ impl RenderedError {
         self.code
     }
 
-    pub fn kind(&self) -> &str {
-        &self.kind
+    pub fn kind(&self) -> &'static str {
+        self.code.category().as_str()
     }
 
     pub fn message(&self) -> &str {
@@ -73,11 +65,8 @@ impl ErrorCatalogue {
         Self::default()
     }
 
-    /// Register one component-owned catalogue layer.
-    ///
-    /// The whole layer is parsed and validated before mutation. A code already
-    /// registered by another component source is rejected rather than silently
-    /// changing ownership.
+    /// Register one owner-local catalogue layer. Duplicate codes across owners
+    /// are rejected rather than silently changing ownership.
     pub fn register_yaml(
         &mut self,
         source: impl Into<String>,
@@ -100,11 +89,8 @@ impl ErrorCatalogue {
         Ok(())
     }
 
-    /// Overlay a complete configured layer at an application/configuration edge.
-    ///
-    /// This is explicit replacement of whole definitions, preserving the
-    /// original project's later-source override semantics without introducing
-    /// filesystem discovery or an ambient global registry here.
+    /// Explicitly overlay a complete configured definition layer at an
+    /// application/configuration edge.
     pub fn overlay_yaml(
         &mut self,
         source: impl Into<String>,
@@ -135,7 +121,6 @@ impl ErrorCatalogue {
 
         Ok(RenderedError {
             code,
-            kind: definition.kind.clone(),
             message,
             resolution: definition.resolution.clone(),
         })
@@ -145,7 +130,6 @@ impl ErrorCatalogue {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawDefinition {
-    kind: String,
     message: String,
     resolution: String,
 }
@@ -204,13 +188,6 @@ fn parse_layer(
                 code,
             });
         }
-        if !valid_kind(&raw.kind) {
-            return Err(ErrorCatalogueError::InvalidKind {
-                source: source.to_owned(),
-                code,
-                kind: raw.kind,
-            });
-        }
         if raw.message.trim().is_empty() {
             return Err(ErrorCatalogueError::EmptyMessage {
                 source: source.to_owned(),
@@ -234,7 +211,6 @@ fn parse_layer(
         parsed.insert(
             code,
             ErrorDefinition {
-                kind: raw.kind,
                 message,
                 resolution: raw.resolution,
                 source: source.to_owned(),
@@ -243,29 +219,6 @@ fn parse_layer(
     }
 
     Ok(parsed)
-}
-
-fn valid_kind(kind: &str) -> bool {
-    let bytes = kind.as_bytes();
-    if bytes.is_empty() || !bytes[0].is_ascii_lowercase() {
-        return false;
-    }
-
-    let mut previous_hyphen = false;
-    for &byte in bytes {
-        if byte == b'-' {
-            if previous_hyphen {
-                return false;
-            }
-            previous_hyphen = true;
-        } else if byte.is_ascii_lowercase() || byte.is_ascii_digit() {
-            previous_hyphen = false;
-        } else {
-            return false;
-        }
-    }
-
-    !previous_hyphen
 }
 
 #[derive(Debug)]
@@ -277,11 +230,6 @@ pub enum ErrorCatalogueError {
     InvalidCode {
         source: String,
         code: String,
-    },
-    InvalidKind {
-        source: String,
-        code: String,
-        kind: String,
     },
     EmptyMessage {
         source: String,
@@ -319,9 +267,6 @@ impl fmt::Display for ErrorCatalogueError {
             Self::InvalidCode { source, code } => {
                 write!(f, "invalid error code {code:?} in {source}")
             }
-            Self::InvalidKind { source, code, kind } => {
-                write!(f, "invalid error kind {kind:?} for {code} in {source}")
-            }
             Self::EmptyMessage { source, code } => {
                 write!(f, "empty canonical message for {code} in {source}")
             }
@@ -340,11 +285,7 @@ impl fmt::Display for ErrorCatalogueError {
                 "duplicate error code {code} in {first_source} and {second_source}"
             ),
             Self::MissingDefinition { code } => {
-                write!(
-                    f,
-                    "no configured definition registered for {}",
-                    code.as_str()
-                )
+                write!(f, "no configured definition registered for {}", code.as_str())
             }
             Self::Render { code, .. } => write!(
                 f,
@@ -361,7 +302,6 @@ impl Error for ErrorCatalogueError {
             Self::InvalidYaml { source, .. } => Some(source),
             Self::InvalidTemplate { error, .. } | Self::Render { source: error, .. } => Some(error),
             Self::InvalidCode { .. }
-            | Self::InvalidKind { .. }
             | Self::EmptyMessage { .. }
             | Self::EmptyResolution { .. }
             | Self::DuplicateCode { .. }
@@ -375,128 +315,94 @@ mod tests {
     use super::*;
 
     const BASE: &str = r#"
-CON-WORKFLOW-002:
-  kind: constraint
-  message: "Workflow '{workflow.id}' changed from revision {expected} to {actual}."
-  resolution: "Reload the latest workflow state and retry."
+CON-EXAMPLE-002:
+  message: "Object '{object.id}' changed from revision {expected} to {actual}."
+  resolution: "Reload the latest state and retry."
 "#;
 
     fn params() -> TemplateContext<String, TemplateValue> {
-        let mut workflow = TemplateContext::new();
-        workflow.insert("id".to_owned(), TemplateValue::String("wf-7".to_owned()));
+        let mut object = TemplateContext::new();
+        object.insert("id".to_owned(), TemplateValue::String("obj-7".to_owned()));
         let mut params = TemplateContext::new();
-        params.insert("workflow".to_owned(), TemplateValue::Object(workflow));
+        params.insert("object".to_owned(), TemplateValue::Object(object));
         params.insert("expected".to_owned(), TemplateValue::from(3));
         params.insert("actual".to_owned(), TemplateValue::from(4));
         params
     }
 
     #[test]
-    fn component_catalogue_owns_static_error_presentation() {
+    fn code_owns_category_and_catalogue_owns_presentation() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue
-            .register_yaml("workflow/errors.yaml", BASE)
-            .unwrap();
+        catalogue.register_yaml("example/errors.yaml", BASE).unwrap();
 
         let rendered = catalogue
-            .render(ErrorCode::new("CON-WORKFLOW-002"), &params())
+            .render(ErrorCode::new("CON-EXAMPLE-002"), &params())
             .unwrap();
 
         assert_eq!(rendered.kind(), "constraint");
         assert_eq!(
             rendered.message(),
-            "Workflow 'wf-7' changed from revision 3 to 4."
+            "Object 'obj-7' changed from revision 3 to 4."
         );
-        assert_eq!(
-            rendered.resolution(),
-            "Reload the latest workflow state and retry."
-        );
+        assert_eq!(rendered.resolution(), "Reload the latest state and retry.");
         assert_eq!(
             catalogue
-                .definition(ErrorCode::new("CON-WORKFLOW-002"))
+                .definition(ErrorCode::new("CON-EXAMPLE-002"))
                 .unwrap()
                 .source(),
-            "workflow/errors.yaml"
+            "example/errors.yaml"
         );
     }
 
     #[test]
-    fn missing_required_params_fail_without_accessing_diagnostics_or_ambient_state() {
+    fn missing_required_params_fail_without_ambient_state() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue
-            .register_yaml("workflow/errors.yaml", BASE)
-            .unwrap();
+        catalogue.register_yaml("example/errors.yaml", BASE).unwrap();
         let error = catalogue
-            .render(ErrorCode::new("CON-WORKFLOW-002"), &TemplateContext::new())
+            .render(ErrorCode::new("CON-EXAMPLE-002"), &TemplateContext::new())
             .unwrap_err();
 
         assert!(matches!(error, ErrorCatalogueError::Render { .. }));
         assert_eq!(
             error.source().unwrap().to_string(),
-            "missing template value: workflow.id"
+            "missing template value: object.id"
         );
     }
 
     #[test]
-    fn extra_message_params_are_tolerated() {
-        let mut catalogue = ErrorCatalogue::new();
-        catalogue
-            .register_yaml("workflow/errors.yaml", BASE)
-            .unwrap();
-        let mut values = params();
-        values.insert(
-            "unused".to_owned(),
-            TemplateValue::String("safe".to_owned()),
-        );
-
-        assert!(
-            catalogue
-                .render(ErrorCode::new("CON-WORKFLOW-002"), &values)
-                .is_ok()
-        );
-    }
-
-    #[test]
-    fn duplicate_codes_inside_one_yaml_source_are_rejected() {
+    fn duplicate_codes_inside_or_across_sources_are_rejected() {
         let duplicate = r#"
 VAL-THING-001:
-  kind: validation
   message: "one"
   resolution: "fix one"
 VAL-THING-001:
-  kind: validation
   message: "two"
   resolution: "fix two"
 "#;
-        let error = ErrorCatalogue::new()
-            .register_yaml("thing/errors.yaml", duplicate)
-            .unwrap_err();
-        assert!(matches!(error, ErrorCatalogueError::InvalidYaml { .. }));
-    }
+        assert!(matches!(
+            ErrorCatalogue::new()
+                .register_yaml("thing/errors.yaml", duplicate)
+                .unwrap_err(),
+            ErrorCatalogueError::InvalidYaml { .. }
+        ));
 
-    #[test]
-    fn component_registration_rejects_cross_source_duplicates() {
         let mut catalogue = ErrorCatalogue::new();
         catalogue.register_yaml("first/errors.yaml", BASE).unwrap();
-        let error = catalogue
-            .register_yaml("second/errors.yaml", BASE)
-            .unwrap_err();
-
-        assert!(matches!(error, ErrorCatalogueError::DuplicateCode { .. }));
+        assert!(matches!(
+            catalogue.register_yaml("second/errors.yaml", BASE).unwrap_err(),
+            ErrorCatalogueError::DuplicateCode { .. }
+        ));
     }
 
     #[test]
-    fn explicit_overlay_replaces_the_complete_definition_atomically() {
+    fn explicit_overlay_replaces_complete_definition() {
         let mut catalogue = ErrorCatalogue::new();
-        catalogue
-            .register_yaml("workflow/errors.yaml", BASE)
-            .unwrap();
+        catalogue.register_yaml("example/errors.yaml", BASE).unwrap();
         catalogue
             .overlay_yaml(
                 "project/errors.yaml",
                 r#"
-CON-WORKFLOW-002:
-  kind: constraint
+CON-EXAMPLE-002:
   message: "Revision {actual} superseded {expected}."
   resolution: "Refresh before retrying."
 "#,
@@ -504,13 +410,13 @@ CON-WORKFLOW-002:
             .unwrap();
 
         let rendered = catalogue
-            .render(ErrorCode::new("CON-WORKFLOW-002"), &params())
+            .render(ErrorCode::new("CON-EXAMPLE-002"), &params())
             .unwrap();
         assert_eq!(rendered.message(), "Revision 4 superseded 3.");
         assert_eq!(rendered.resolution(), "Refresh before retrying.");
         assert_eq!(
             catalogue
-                .definition(ErrorCode::new("CON-WORKFLOW-002"))
+                .definition(ErrorCode::new("CON-EXAMPLE-002"))
                 .unwrap()
                 .source(),
             "project/errors.yaml"
@@ -518,10 +424,22 @@ CON-WORKFLOW-002:
     }
 
     #[test]
-    fn malformed_identity_kind_and_template_fail_before_registration() {
-        let invalid_code = r#"
-VAL-1THING-001:
+    fn legacy_kind_and_malformed_definitions_fail_before_registration() {
+        let legacy_kind = r#"
+VAL-THING-001:
   kind: validation
+  message: "bad"
+  resolution: "fix"
+"#;
+        assert!(matches!(
+            ErrorCatalogue::new()
+                .register_yaml("legacy-kind", legacy_kind)
+                .unwrap_err(),
+            ErrorCatalogueError::InvalidYaml { .. }
+        ));
+
+        let invalid_code = r#"
+BAD-THING-001:
   message: "bad"
   resolution: "fix"
 "#;
@@ -530,32 +448,6 @@ VAL-1THING-001:
                 .register_yaml("bad-code", invalid_code)
                 .unwrap_err(),
             ErrorCatalogueError::InvalidCode { .. }
-        ));
-
-        let invalid_kind = r#"
-VAL-THING-001:
-  kind: Bad Kind
-  message: "bad"
-  resolution: "fix"
-"#;
-        assert!(matches!(
-            ErrorCatalogue::new()
-                .register_yaml("bad-kind", invalid_kind)
-                .unwrap_err(),
-            ErrorCatalogueError::InvalidKind { .. }
-        ));
-
-        let invalid_template = r#"
-VAL-THING-001:
-  kind: validation
-  message: "missing {brace"
-  resolution: "fix"
-"#;
-        assert!(matches!(
-            ErrorCatalogue::new()
-                .register_yaml("bad-template", invalid_template)
-                .unwrap_err(),
-            ErrorCatalogueError::InvalidTemplate { .. }
         ));
     }
 }

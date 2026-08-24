@@ -1,15 +1,22 @@
 # AudiaCore
 
-Clean-room Rust foundation used to revalidate and rebuild the AUDiaGentic platform architecture from first principles.
+Clean-room Rust foundation for the AUDiaGentic platform.
 
-Stages 0 through 8 are accepted and remain the foundation baseline. Future work builds upward from that baseline; required target capabilities may be documented before their implementation is earned.
+The accepted Stage 8 baseline is intentionally small. The active workspace contains only earned reusable contracts and capabilities; historical proving scaffolding is retained in Git history, not as production API.
 
-Architecture documents have distinct roles:
+Current layers:
 
-- `docs/architecture/revalidation.md` — accepted Stage 0–8 proof history and evidence;
-- `docs/architecture/layer-lock.md` — enduring semantic ownership and dependency rules;
-- `docs/architecture/target-state.md` — required, proved, deferred, hypothetical, and rejected target capabilities;
-- `docs/architecture/roadmap.md` — sequencing rules for proving missing target capabilities;
-- `docs/architecture/dependencies.md` — dependency admission and health decisions.
+- core identity and opaque `Application<C>` composition seam;
+- stable coded errors, sensitive values, templates, and configured error presentation;
+- pure reconciliation and in-memory configuration resolution;
+- explicit file/process host contracts and native adapters;
+- events, workflow, and time primitives;
+- Managed Content, currently limited to its whole-file desired-state slice.
 
-The current `audiacore-managed-config` crate is an accepted narrow whole-file desired-state capability. **Managed Content** is the higher target capability and has not yet replaced that crate in code.
+Architecture records:
+
+- `docs/architecture/layer-lock.md` — current ownership/dependency rules;
+- `docs/architecture/target-state.md` — target capability map;
+- `docs/architecture/roadmap.md` — next proof order;
+- `docs/architecture/revalidation.md` — accepted historical evidence;
+- `docs/architecture/dependencies.md` — dependency policy and current decisions.

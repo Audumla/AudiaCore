@@ -1,4 +1,3 @@
 VAL-SENSITIVE-001:
-  kind: validation
   message: "Sensitive key must not be empty."
   resolution: "Provide a non-empty sensitive key name."

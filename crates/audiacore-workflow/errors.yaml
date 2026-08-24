@@ -1,20 +1,15 @@
 VAL-WORKFLOW-001:
-  kind: validation
   message: "Workflow instance identifier must not be empty."
   resolution: "Provide a non-empty workflow instance identifier."
 CON-WORKFLOW-001:
-  kind: constraint
   message: "Workflow instance is already terminal."
   resolution: "Do not apply further transitions to a completed or failed workflow instance."
 CON-WORKFLOW-002:
-  kind: constraint
   message: "Workflow revision does not match the expected revision."
   resolution: "Reload the latest workflow state and retry the decision against that revision."
 CON-WORKFLOW-003:
-  kind: constraint
   message: "Workflow definition rejected the transition."
   resolution: "Inspect the domain-specific transition error and correct the requested event or state."
 RES-WORKFLOW-001:
-  kind: resource
   message: "Workflow revision space is exhausted."
   resolution: "Create a new workflow instance rather than allowing revision identity to wrap."

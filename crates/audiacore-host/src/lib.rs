@@ -48,8 +48,7 @@ impl Error for FileAuthorityError {}
 /// Permission to observe files beneath one explicit root.
 ///
 /// This type intentionally exposes no lexical `allows(path)` helper. Safe
-/// containment depends on canonicalization and symlink-aware checks performed
-/// by the concrete host implementation at the effect boundary.
+/// containment depends on symlink-aware checks at the effect boundary.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileReadAuthority {
     root: PathBuf,
@@ -93,10 +92,7 @@ fn validate_file_root(root: &Path) -> Result<(), FileAuthorityError> {
     }
 }
 
-/// Filesystem effect boundary required by managed configuration.
-///
-/// Mandatory-read, directory traversal, watching and metadata operations are
-/// deliberately absent until a real consumer proves those semantics.
+/// Minimal byte-oriented filesystem effect boundary.
 pub trait FileHost: Send + Sync {
     type Error: Error + Send + Sync + 'static;
 
@@ -353,8 +349,7 @@ impl ProcessExit {
 }
 
 /// Owned child-process lifecycle. Stream access is ownership-based only; the
-/// application/runtime decides whether to read/write those streams directly or
-/// adapt them onto threads or an async reactor.
+/// caller decides whether to read/write directly or adapt onto another runtime.
 pub trait ProcessChild: Send {
     type Error: Error + Send + Sync + 'static;
 
@@ -375,8 +370,7 @@ pub trait ProcessChild: Send {
     }
 }
 
-/// Process creation returns an owned child rather than a one-shot execution
-/// result. Provider/session semantics remain above this boundary.
+/// Process creation returns an owned child.
 pub trait ProcessHost: Send + Sync {
     type Error: Error + Send + Sync + 'static;
     type Child: ProcessChild<Error = Self::Error>;
@@ -410,7 +404,7 @@ mod tests {
     }
 
     #[test]
-    fn read_and_write_authorities_keep_their_grants_distinct() {
+    fn read_and_write_authorities_keep_grants_distinct() {
         let root = absolute_root();
         let read = FileReadAuthority::new(root.clone()).unwrap();
         let write = FileWriteAuthority::new(root.clone()).unwrap();
@@ -457,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn process_request_rejects_ambient_relative_paths_and_empty_env_keys() {
+    fn process_request_rejects_relative_paths_and_empty_env_keys() {
         let relative_program = ProcessRequest::new("relative/tool").unwrap_err();
         assert_eq!(relative_program.code().as_str(), "VAL-HOST-PROCESS-001");
 
