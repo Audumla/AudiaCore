@@ -42,7 +42,7 @@ impl RenderedError {
         self.code
     }
 
-    pub fn kind(&self) -> &'static str {
+    pub fn category(&self) -> &'static str {
         self.code.category().as_str()
     }
 
@@ -345,7 +345,7 @@ CON-EXAMPLE-002:
             .render(ErrorCode::new("CON-EXAMPLE-002"), &params())
             .unwrap();
 
-        assert_eq!(rendered.kind(), "constraint");
+        assert_eq!(rendered.category(), "constraint");
         assert_eq!(
             rendered.message(),
             "Object 'obj-7' changed from revision 3 to 4."
