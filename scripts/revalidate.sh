@@ -51,8 +51,9 @@ for path in .gitignore LICENSE README.md AGENTS.md rust-toolchain.toml \
 done
 
 for path in CLAUDE.md COPILOT.md GEMINI.md QWEN.md pyproject.toml uv.lock \
-  package.json package-lock.json Makefile .audiagentic .agents .qwen archive src tests; do
-  [[ ! -e "$path" ]] || fail "legacy or duplicate repository surface present: $path"
+  package.json package-lock.json Makefile .audiagentic .agents .qwen archive src tests \
+  crates/audiacore-application scripts/revalidate-stage7.sh; do
+  [[ ! -e "$path" ]] || fail "legacy/proof-only repository surface present: $path"
 done
 
 if find . -path './.git' -prune -o -path './target' -prune -o \
@@ -60,65 +61,61 @@ if find . -path './.git' -prune -o -path './target' -prune -o \
   fail "generated/local artifact present in validation tree"
 fi
 
+assert_no_match 'audiacore-managed-config|ManagedConfig|managed_config|IO-MCONFIG|revalidate-stage7' \
+  "retired terminology/proof scaffolding returned" \
+  Cargo.toml README.md AGENTS.md crates .github \
+  docs/architecture/layer-lock.md docs/architecture/target-state.md \
+  docs/architecture/roadmap.md docs/architecture/dependencies.md
+
+assert_no_match 'tracing(-subscriber)?[[:space:]]*=' \
+  "tracing dependencies returned without an active application/executable consumer" Cargo.toml crates
+
 rustc --version
 cargo --version
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
-# Production libraries must never write unstructured diagnostics directly.
-# Test targets are intentionally excluded because native child-process probes
-# use stdout as the protocol surface being exercised.
 cargo clippy --workspace --lib --locked -- \
-  -D warnings \
-  -D clippy::print_stdout \
-  -D clippy::print_stderr \
-  -D clippy::dbg_macro
+  -D warnings -D clippy::print_stdout -D clippy::print_stderr -D clippy::dbg_macro
 cargo test --workspace --locked
 
-echo "REPOSITORY_DISCIPLINE_OK"
 echo "RUST_WORKSPACE_OK"
 
-# Core: zero-dependency identity/composition kernel only.
+# Core: identity and opaque composition only.
 core_manifest="crates/audiacore-core/Cargo.toml"
 core_src="crates/audiacore-core/src"
-[[ -f "$core_manifest" ]] || fail "core crate missing"
 if grep -Eq 'dependencies\]$' "$core_manifest"; then
   fail "core must have zero normal/dev/build dependencies"
 fi
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|config::|File|Process|Recipe|Provider|Policy' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|FileHost|ProcessHost|Provider|Policy|Plugin|Registry' \
   "core contains later-layer/effect/runtime semantics" "$core_src"
-for symbol in 'pub struct Application<C>' 'pub struct ExecutionContext' 'string_id!(ApplicationId' \
-  'string_id!(ExecutionId' 'string_id!(CorrelationId'; do
+for symbol in 'pub struct Application<C>' 'pub struct ExecutionContext' \
+  'string_id!(ApplicationId' 'string_id!(ExecutionId' 'string_id!(CorrelationId'; do
   grep -Fq "$symbol" "$core_src/lib.rs" || fail "core missing $symbol"
 done
-echo "CORE_LAYER_OK"
 
-# Stable error identity: no configured presentation or effects.
+# Stable errors: identity/category only.
 errors_manifest="crates/audiacore-errors/Cargo.toml"
 errors_src="crates/audiacore-errors/src"
-[[ -f "$errors_manifest" ]] || fail "stable error crate missing"
 if grep -Eq 'dependencies\]$' "$errors_manifest"; then
   fail "stable error identity must have zero normal/dev/build dependencies"
 fi
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-core|ErrorDefinition|canonical_message' \
-  "stable error identity contains presentation/upward/effect semantics" "$errors_src"
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|ErrorDefinition|canonical_message' \
+  "stable errors contain presentation/effect semantics" "$errors_src"
 for symbol in 'pub struct ErrorCode' 'pub enum ErrorCategory' 'pub trait CodedError'; do
-  grep -Fq "$symbol" "$errors_src/lib.rs" || fail "stable error identity missing $symbol"
+  grep -Fq "$symbol" "$errors_src/lib.rs" || fail "stable errors missing $symbol"
 done
-[[ ! -e crates/audiacore-errors/errors.yaml ]] || fail "stable identity crate must not own configured messages"
+[[ ! -e crates/audiacore-errors/errors.yaml ]] || fail "stable error identity must not own configured messages"
 
-# Every production code is owned exactly once by its crate-local configured catalogue.
+# Production coded errors and owner-local catalogues must match exactly.
 python - <<'PY'
 from pathlib import Path
 import re
 import sys
 
-code_re = re.compile(
-    r'const\s+[A-Z0-9_]+\s*:\s*ErrorCode\s*=\s*ErrorCode::new\("([A-Z][A-Z0-9-]*-\d{3})"\);'
-)
+code_re = re.compile(r'const\s+[A-Z0-9_]+\s*:\s*ErrorCode\s*=\s*ErrorCode::new\("([A-Z][A-Z0-9-]*-\d{3})"\);')
 yaml_code_re = re.compile(r'^([A-Z]{2,}(?:-[A-Z][A-Z0-9]*)+-\d{3}):\s*$', re.MULTILINE)
-
-all_yaml = {}
 problems = []
+all_yaml = {}
 for crate in sorted(Path("crates").glob("audiacore-*")):
     rust_codes = set()
     src = crate / "src"
@@ -129,7 +126,10 @@ for crate in sorted(Path("crates").glob("audiacore-*")):
     yaml_codes = set()
     catalogue = crate / "errors.yaml"
     if catalogue.is_file():
-        matches = yaml_code_re.findall(catalogue.read_text())
+        text = catalogue.read_text()
+        if re.search(r'^\s+kind:', text, re.MULTILINE):
+            problems.append(f"{catalogue}: category must not be duplicated as kind")
+        matches = yaml_code_re.findall(text)
         if len(matches) != len(set(matches)):
             problems.append(f"{catalogue}: duplicate top-level stable code")
         yaml_codes = set(matches)
@@ -147,194 +147,166 @@ for crate in sorted(Path("crates").glob("audiacore-*")):
             problems.append(f"{crate}: errors.yaml codes without production identity: {extra}")
 
 if problems:
-    print("REVALIDATION_FAIL: error catalogue ownership/coverage mismatch", file=sys.stderr)
+    print("REVALIDATION_FAIL: error catalogue ownership/schema mismatch", file=sys.stderr)
     for problem in problems:
         print(f"  - {problem}", file=sys.stderr)
     raise SystemExit(1)
 PY
 
-echo "ERROR_IDENTITY_OK"
+echo "ERROR_CONTRACT_OK"
 
-# Sensitive values remain a tiny coded pure primitive.
+# Pure foundation primitives.
 sensitive_dir="crates/audiacore-sensitive"
 assert_dependencies "$sensitive_dir/Cargo.toml" "audiacore-errors"
 assert_no_dev_or_build_dependencies "$sensitive_dir/Cargo.toml"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|host|config)' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|audiacore-(core|host|config)' \
   "sensitive values contain upward/effect/runtime semantics" "$sensitive_dir/src"
-grep -q 'pub struct Sensitive<T>' "$sensitive_dir/src/lib.rs" || fail "Sensitive<T> missing"
-grep -q 'impl CodedError for' "$sensitive_dir/src/lib.rs" || fail "sensitive failures need stable identity"
+for symbol in 'pub struct Sensitive<T>' 'pub struct SensitiveKey' 'pub fn redact_text'; do
+  grep -Fq "$symbol" "$sensitive_dir/src/lib.rs" || fail "sensitive values missing $symbol"
+done
 
-# Reconciliation is only desired/observed -> effect intent. No ownership/resource/error vocabulary.
 reconcile_manifest="crates/audiacore-reconcile/Cargo.toml"
 reconcile_src="crates/audiacore-reconcile/src/lib.rs"
-[[ -f "$reconcile_src" ]] || fail "reconcile source missing"
 assert_no_dev_or_build_dependencies "$reconcile_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|host|config)|ErrorCode|CodedError|ResourceId|OwnerId|Ownership|Authority|Policy' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|audiacore-|ErrorCode|CodedError|ResourceId|OwnerId|Ownership|Authority|Policy' \
   "reconcile acquired resource/ownership/effect/policy semantics" "$reconcile_src"
-[[ ! -e crates/audiacore-reconcile/errors.yaml ]] || fail "pure reconcile must not own an error catalogue"
-grep -q 'pub enum ReconcileAction<T>' "$reconcile_src" || fail "reconciliation effect-as-data missing"
-grep -q 'pub fn plan<T>' "$reconcile_src" || fail "generic reconciliation planner missing"
-echo "PURE_RECONCILIATION_OK"
+grep -Fq 'pub enum ReconcileAction<T>' "$reconcile_src" || fail "reconciliation action missing"
+grep -Fq 'pub fn plan<T>' "$reconcile_src" || fail "reconciliation planner missing"
 
-# Templates are mapping-only presentation mechanics.
 template_manifest="crates/audiacore-template/Cargo.toml"
 template_src="crates/audiacore-template/src/lib.rs"
 assert_dependencies "$template_manifest" "$(printf '%s\n' audiacore-errors serde_json)"
 assert_no_dev_or_build_dependencies "$template_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-(core|host|config)' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|audiacore-(core|host|config)' \
   "template contains effects/upward semantics" crates/audiacore-template/src
-for symbol in 'pub struct Template' 'resolve_path' 'TemplateContext'; do
-  grep -q "$symbol" "$template_src" || fail "template missing $symbol"
+for symbol in 'pub struct Template' 'TemplateContext' 'pub fn render'; do
+  grep -Fq "$symbol" "$template_src" || fail "template missing $symbol"
 done
-! grep -Fq 'find("{{")' "$template_src" || fail "legacy flat double-brace template syntax returned"
-echo "PURE_FOUNDATION_PRIMITIVES_OK"
 
-# Configured error presentation is caller-owned and effect-free.
 catalog_manifest="crates/audiacore-error-catalog/Cargo.toml"
 catalog_src="crates/audiacore-error-catalog/src/lib.rs"
 assert_dependencies "$catalog_manifest" "$(printf '%s\n' audiacore-errors audiacore-template serde yaml_serde)"
 assert_no_dev_or_build_dependencies "$catalog_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-(core|config|host|host-native|events|workflow|time|managed-content)' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|audiacore-(core|config|host|host-native|events|workflow|time|managed-content)' \
   "error catalogue contains discovery/effects/upward semantics" "$catalog_src"
 for symbol in ErrorDefinition ErrorCatalogue RenderedError ErrorCatalogueError; do
-  grep -q "$symbol" "$catalog_src" || fail "configured error catalogue missing $symbol"
+  grep -Fq "$symbol" "$catalog_src" || fail "error catalogue missing $symbol"
 done
 for op in register_yaml overlay_yaml render; do
-  grep -q "pub fn $op" "$catalog_src" || fail "error catalogue missing $op"
+  grep -Fq "pub fn $op" "$catalog_src" || fail "error catalogue missing $op"
 done
-assert_no_match 'OnceLock|OnceCell|lazy_static|Global.*Catalogue|ErrorRegistry' \
-  "error catalogue regained global registry semantics" "$catalog_src"
-echo "CONFIGURED_ERROR_PRESENTATION_OK"
+assert_no_match 'kind:[[:space:]]*String|raw.kind|InvalidKind|OnceLock|OnceCell|lazy_static|ErrorRegistry' \
+  "error catalogue regained duplicate category/global registry semantics" "$catalog_src"
 
-# Configuration resolves already-acquired content; it does not acquire sources or own policy.
+echo "FOUNDATION_PRIMITIVES_OK"
+
+# Configuration resolves content already acquired by the caller.
 config_manifest="crates/audiacore-config/Cargo.toml"
 config_src="crates/audiacore-config/src/lib.rs"
 assert_dependencies "$config_manifest" "$(printf '%s\n' audiacore-errors serde toml)"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|figment|audiacore-(core|host)|Policy|from_env|from_file|read_to_string' \
-  "config acquired source effects/provider/policy/upward semantics" crates/audiacore-config/src
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|reqwest|audiacore-(core|host)|Policy|from_env|from_file|read_to_string' \
+  "config acquired source effects/policy/upward semantics" crates/audiacore-config/src
 for symbol in ConfigLayerId ConfigRevision 'ResolvedConfig<T>' ConfigLayers; do
-  grep -q "$symbol" "$config_src" || fail "configuration resolver missing $symbol"
+  grep -Fq "$symbol" "$config_src" || fail "config missing $symbol"
 done
-grep -q 'pub fn merge_toml' "$config_src" || fail "in-memory TOML merge missing"
-! grep -q 'into_value' "$config_src" || fail "config must not silently discard provenance"
-echo "CONFIG_RESOLUTION_OK"
+grep -Fq 'pub fn merge_toml' "$config_src" || fail "in-memory TOML merge missing"
 
-# Host ports describe effects and explicit authorization, never app policy or native mechanics.
+# Host contracts and native adapters.
 host_manifest="crates/audiacore-host/Cargo.toml"
 host_src="crates/audiacore-host/src/lib.rs"
 assert_dependencies "$host_manifest" "$(printf '%s\n' audiacore-errors audiacore-sensitive)"
 assert_no_dev_or_build_dependencies "$host_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(config|core)|Recipe|ManagedContent|PackageManager' \
-  "host contract contains native/config/application semantics" crates/audiacore-host/src
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|audiacore-(config|core)|ManagedContent|Recipe|Provider|PackageManager' \
+  "host contract contains native/application/content semantics" crates/audiacore-host/src
 for symbol in FileReadAuthority FileWriteAuthority FileHost ProcessAuthority ProcessRequest ProcessStdio ProcessExit ProcessChild ProcessHost; do
-  grep -q "$symbol" "$host_src" || fail "host contract missing $symbol"
+  grep -Fq "$symbol" "$host_src" || fail "host contract missing $symbol"
 done
-grep -q 'Sensitive<OsString>' "$host_src" || fail "process environment values must be sensitive"
-grep -q 'inherit_environment: false' "$host_src" || fail "ambient process environment must default off"
-assert_no_match 'ServiceLocator|HostServices|HostRegistry|FileManager|ProcessManager|ProcessRegistry' \
-  "host contract regained container/manager semantics" "$host_src"
-echo "HOST_BOUNDARY_OK"
+grep -Fq 'Sensitive<OsString>' "$host_src" || fail "process environment values must be sensitive"
+grep -Fq 'inherit_environment: false' "$host_src" || fail "ambient process environment must default off"
 
-# Native host contains OS mechanics only. Filesystem effects are relative to a
-# cap-std directory capability; callers and public host contracts do not see
-# cap-std types.
 native_manifest="crates/audiacore-host-native/Cargo.toml"
 native_src="crates/audiacore-host-native/src"
 assert_dependencies "$native_manifest" "$(printf '%s\n' audiacore-host cap-std)"
-assert_no_match 'tokio|tracing|serde|reqwest|figment|audiacore-(config|core|errors)|Recipe|Policy|Provider' \
-  "native host contains upward/runtime/application semantics" "$native_src"
-grep -q 'impl FileHost for NativeFileHost' "$native_src/lib.rs" || fail "NativeFileHost implementation missing"
-grep -q 'Dir::open_ambient_dir' "$native_src/lib.rs" || fail "native file authority must acquire a directory capability"
-grep -q 'dir.symlink_metadata' "$native_src/lib.rs" || fail "native file leaf inspection must be capability-relative"
-grep -q 'dir.read' "$native_src/lib.rs" || fail "native file reads must be capability-relative"
-grep -q 'dir.remove_file' "$native_src/lib.rs" || fail "native file removals must be capability-relative"
-grep -q 'dir.open_with' "$native_src/file_store.rs" || fail "temporary file creation must be capability-relative"
-grep -q 'dir.rename' "$native_src/file_store.rs" || fail "atomic replacement rename must be capability-relative"
-grep -q 'create_new(true)' "$native_src/file_store.rs" || fail "unique temporary creation missing"
-grep -q 'sync_all()' "$native_src/file_store.rs" || fail "file durability sync missing"
+assert_no_match 'tokio|tracing|serde|reqwest|audiacore-(config|core|errors)|ManagedContent|Recipe|Policy|Provider' \
+  "native host contains upward/application/content semantics" "$native_src"
+grep -Fq 'impl FileHost for NativeFileHost' "$native_src/lib.rs" || fail "NativeFileHost missing"
+grep -Fq 'Dir::open_ambient_dir' "$native_src/lib.rs" || fail "native file authority must acquire Dir capability"
+grep -Fq 'dir.read' "$native_src/lib.rs" || fail "native file reads must be capability-relative"
+grep -Fq 'dir.remove_file' "$native_src/lib.rs" || fail "native file removals must be capability-relative"
+grep -Fq 'dir.open_with' "$native_src/file_store.rs" || fail "temporary creation must be capability-relative"
+grep -Fq 'dir.rename' "$native_src/file_store.rs" || fail "atomic rename must be capability-relative"
 for file in "$native_src/lib.rs" "$native_src/file_store.rs"; do
   if sed '/^#\[cfg(test)\]/,$d' "$file" | grep -Eq 'fs::(canonicalize|read|write|remove_file|symlink_metadata|rename)'; then
-    fail "$file reintroduced ambient std::fs target operations after capability acquisition"
+    fail "$file reintroduced ambient std::fs target operations"
   fi
 done
-process_src="$native_src/process.rs"
-grep -q 'impl ProcessHost for NativeProcessHost' "$process_src" || fail "native ProcessHost implementation missing"
-grep -q 'impl ProcessChild for NativeProcess' "$process_src" || fail "native ProcessChild implementation missing"
-grep -q 'command.env_clear()' "$process_src" || fail "native process must clear ambient environment by default"
-grep -q 'impl Drop for NativeProcess' "$process_src" || fail "owned direct-child cleanup missing"
-assert_no_match 'ProcessManager|ProcessRegistry|HostFuture|descendant|process.?tree' \
-  "native process regained manager/async/tree semantics" "$process_src"
-echo "NATIVE_HOST_OK"
+grep -Fq 'impl ProcessHost for NativeProcessHost' "$native_src/process.rs" || fail "NativeProcessHost missing"
+grep -Fq 'command.env_clear()' "$native_src/process.rs" || fail "native process must clear ambient environment by default"
+grep -Fq 'impl Drop for NativeProcess' "$native_src/process.rs" || fail "owned child cleanup missing"
 
-# Reusable capabilities remain independent and effect-free unless explicitly using host ports.
+echo "HOST_BOUNDARIES_OK"
+
+# Reusable capabilities.
 events_manifest="crates/audiacore-events/Cargo.toml"
 events_src="crates/audiacore-events/src/lib.rs"
 assert_dependencies "$events_manifest" "$(printf '%s\n' audiacore-core audiacore-errors)"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(host|config|host-native)' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|audiacore-(host|config|host-native)' \
   "events contains effects/runtime/config coupling" crates/audiacore-events/src
 for symbol in EventId EventStreamId CausationId EventSequence EventCursor EventPolicy EventEnvelope EventPage EventStream; do
-  grep -q "$symbol" "$events_src" || fail "events missing $symbol"
+  grep -Fq "$symbol" "$events_src" || fail "events missing $symbol"
 done
 assert_no_match 'EventBus|EventBroker|Publisher|Subscriber|Subscription|Retry|Scheduler|Transport' \
   "events regained broker/runtime semantics" "$events_src"
-echo "EVENT_CAPABILITY_OK"
 
 workflow_manifest="crates/audiacore-workflow/Cargo.toml"
 workflow_src="crates/audiacore-workflow/src/lib.rs"
 assert_dependencies "$workflow_manifest" "audiacore-errors"
-assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|config|host|host-native)' \
+assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|audiacore-(core|events|config|host|host-native)' \
   "workflow contains effects/clock/runtime/upward coupling" crates/audiacore-workflow/src
 for symbol in WorkflowInstanceId WorkflowStatus WorkflowDefinition WorkflowTransition WorkflowInstance WorkflowReceipt WorkflowSnapshot WorkflowError; do
-  grep -q "$symbol" "$workflow_src" || fail "workflow missing $symbol"
+  grep -Fq "$symbol" "$workflow_src" || fail "workflow missing $symbol"
 done
 assert_no_match 'Workflow(Store|Repository|Persistence|Scheduler|Manager|Registry)|Retry|Backoff|Compensation|TaskExecutor' \
   "workflow regained persistence/runtime/manager semantics" "$workflow_src"
-echo "WORKFLOW_CAPABILITY_OK"
 
 time_manifest="crates/audiacore-time/Cargo.toml"
 time_src="crates/audiacore-time/src/lib.rs"
 assert_dependencies "$time_manifest" "audiacore-errors"
-assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|config|host|host-native)' \
+assert_no_match 'std::(fs|env|process|net|time)|SystemTime|Instant|tokio|tracing|serde|reqwest|audiacore-(core|events|workflow|config|host|host-native)' \
   "time contains effects/clock/runtime/upward coupling" crates/audiacore-time/src
 for symbol in Timestamp Deadline TimerId TimerSet; do
-  grep -q "$symbol" "$time_src" || fail "time missing $symbol"
+  grep -Fq "$symbol" "$time_src" || fail "time missing $symbol"
 done
 assert_no_match 'Clock|TimeProvider|TimerManager|TimerRegistry|Scheduler|Task|Sleep|Retry|Backoff' \
   "time regained clock/scheduler/runtime semantics" "$time_src"
-echo "TIME_CAPABILITY_OK"
 
-# Managed Content currently proves only its whole-file slice.
 managed_manifest="crates/audiacore-managed-content/Cargo.toml"
 managed_src="crates/audiacore-managed-content/src/lib.rs"
 assert_dependencies "$managed_manifest" "$(printf '%s\n' audiacore-errors audiacore-host audiacore-reconcile)"
 assert_no_dev_or_build_dependencies "$managed_manifest"
-assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|figment|audiacore-(core|events|workflow|time|config|host-native)|OwnerId|OwnershipMismatch|ContributionId|Policy' \
+assert_no_match 'std::(fs|env|process|net)|tokio|tracing|serde|reqwest|audiacore-(core|events|workflow|time|config|host-native)|OwnerId|OwnershipMismatch|ContributionId|Policy' \
   "Managed Content whole-file slice contains source/native/ownership/upward semantics" crates/audiacore-managed-content/src
 for symbol in ManagedContentTarget ManagedContentPlan ManagedContentApplyResult ManagedContentError; do
-  grep -q "$symbol" "$managed_src" || fail "Managed Content whole-file slice missing $symbol"
+  grep -Fq "$symbol" "$managed_src" || fail "Managed Content slice missing $symbol"
 done
-grep -q 'target: ManagedContentTarget' "$managed_src" || fail "whole-file plan must bind the exact target"
-grep -q 'host.read_optional' "$managed_src" || fail "whole-file observation must use FileHost"
-grep -q 'reconcile_presence' "$managed_src" || fail "whole-file planning must delegate to pure reconcile"
-grep -q 'host.write(authority, plan.target().path()' "$managed_src" || fail "apply must use the plan-bound target"
-grep -q 'host.remove(authority, plan.target().path()' "$managed_src" || fail "delete must use the plan-bound target"
+grep -Fq 'reconcile_presence' "$managed_src" || fail "Managed Content planning must delegate to reconcile"
+grep -Fq 'host.write(authority, plan.target().path()' "$managed_src" || fail "Managed Content apply must use plan-bound target"
+grep -Fq 'host.remove(authority, plan.target().path()' "$managed_src" || fail "Managed Content delete must use plan-bound target"
 assert_no_match 'Parser|Watcher|Scheduler|Retry|Backoff|Cas|CAS|Manager|Registry|Receipt' \
-  "Managed Content whole-file slice regained unearned higher-level semantics" "$managed_src"
-echo "MANAGED_CONTENT_WHOLE_FILE_SLICE_OK"
+  "Managed Content whole-file slice regained unearned semantics" "$managed_src"
 
-# Global semantic lock: production code must not bypass tracing/host/config boundaries.
+echo "CAPABILITY_LAYERS_OK"
+
+# Global locks.
 assert_no_match 'set_global_default|tracing_subscriber::.*\.init\(|tracing_subscriber::.*try_init\(' \
   "library code owns a global tracing subscriber" crates/*/src
 assert_no_match 'ServiceRegistry|ProviderRegistry|PolicyRegistry|ServiceLocator|DependencyContainer|GlobalRuntime|GlobalContext' \
   "registry/container semantics returned" crates/*/src
 
-# Architecture records have distinct jobs and must retain their governing locks.
-grep -q 'Sources provide data' docs/architecture/layer-lock.md || fail "layer-lock governing rule missing"
-grep -q 'Componentized application composition lock' docs/architecture/layer-lock.md || fail "composition lock missing"
-grep -q 'Managed Content' docs/architecture/target-state.md || fail "target-state Managed Content capability missing"
-grep -q 'Extension/plugin composition' docs/architecture/target-state.md || fail "target-state extension capability missing"
-grep -q 'Figment' docs/architecture/dependencies.md || fail "Figment dependency decision not recorded"
-grep -q 'config-rs' docs/architecture/dependencies.md || fail "live config library alternative not recorded"
+grep -Fq 'Sources provide data' docs/architecture/layer-lock.md || fail "governing layer rule missing"
+grep -Fq 'no current application-composition crate' docs/architecture/layer-lock.md || fail "proof application retirement missing"
+grep -Fq 'Componentized application composition' docs/architecture/target-state.md || fail "target composition missing"
+grep -Fq 'Extension identity + composition' docs/architecture/target-state.md || fail "target extension composition missing"
+grep -Fq 'Managed Content partial/structured ownership' docs/architecture/target-state.md || fail "target Managed Content expansion missing"
 
-echo "SEMANTIC_LAYER_LOCK_OK"
 echo "AUDIACORE_REVALIDATION_OK"

@@ -1,8 +1,7 @@
 //! Native implementations of narrow AudiaCore host contracts.
 //!
-//! Native effects live here, below reusable application capabilities. This
-//! crate does not own policy, configuration, provider, session, or runtime
-//! semantics.
+//! Native effects live here behind reusable host contracts. This crate owns no
+//! policy or higher-level runtime semantics.
 
 mod file_store;
 mod process;
@@ -50,10 +49,10 @@ impl fmt::Display for NativeHostError {
             }
             Self::MissingFileName(path) => write!(f, "file target has no file name: {path:?}"),
             Self::SymbolicLinkWriteTarget(path) => {
-                write!(f, "managed write target is a symbolic link: {path:?}")
+                write!(f, "file write target is a symbolic link: {path:?}")
             }
             Self::DirectoryWriteTarget(path) => {
-                write!(f, "managed write target is a directory: {path:?}")
+                write!(f, "file write target is a directory: {path:?}")
             }
             Self::ReadFile { path, .. } => write!(f, "cannot read file {path:?}"),
             Self::WriteFile { path, .. } => write!(f, "cannot atomically write file {path:?}"),
@@ -100,8 +99,7 @@ fn outside_authority(root: &Path, path: &Path) -> NativeHostError {
 }
 
 /// Convert caller path syntax into a normalized path relative to the granted
-/// root. This is a semantic pre-check only; `cap_std::fs::Dir` remains the
-/// effect-time containment boundary for every filesystem operation.
+/// root. `cap_std::fs::Dir` remains the effect-time containment boundary.
 fn relative_target(root: &Path, path: &Path) -> Result<PathBuf, NativeHostError> {
     let candidate = if path.is_absolute() {
         path.strip_prefix(root)
