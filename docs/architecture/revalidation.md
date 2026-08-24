@@ -1,287 +1,221 @@
 # AudiaCore clean-room architecture revalidation
 
-Status: **COMPLETE THROUGH STAGE 8**
+Status: **COMPLETE THROUGH STAGE 8**.
 
-AudiaCore rebuilds the production Rust foundation from an empty repository so every layer is re-earned rather than copied. Prior AUDiaGentic work is requirements evidence only; code, dependencies, API shape, and boundaries are reassessed at each stage.
+This document is the accepted proof history for the clean-room Rust foundation.
+It is not the future capability roadmap.
+
+Use:
+
+- `layer-lock.md` for enduring semantic ownership/dependency rules;
+- `target-state.md` for required and deferred platform capabilities;
+- `roadmap.md` for post-Stage-8 proof sequencing;
+- `dependencies.md` for dependency admission/health decisions.
 
 ## Method
 
-Every stage must:
+AudiaCore rebuilt the production Rust foundation from an empty repository so
+each boundary was re-earned rather than copied from the prior AUDiaGentic code.
+Prior work was treated as requirements evidence, not implementation authority.
 
-1. state the responsibility and deliberate exclusions before acceptance;
-2. add only the minimum code needed to prove the responsibility;
+Every accepted stage had to:
+
+1. state responsibility and exclusions before acceptance;
+2. add only enough code to prove that responsibility;
 3. add behaviour tests and architecture gates;
-4. pass strict `cargo fmt`, Clippy `-D warnings`, and tests using the committed lockfile;
+4. pass formatting, Clippy `-D warnings`, and tests with the committed lockfile;
 5. pass Ubuntu, macOS, and Windows;
-6. record the accepted head and workflow run before the next stage is accepted.
+6. preserve downward dependency and semantic ownership direction.
 
-A green build alone is insufficient. Dependency direction, effect ownership, stable errors, configuration provenance, policy/authority separation, and absence of speculative abstractions are acceptance criteria.
+A green build alone was insufficient. Configuration provenance, policy/authority
+separation, native-effect isolation, stable error identity, supply-chain policy,
+and absence of speculative registries/managers/frameworks were acceptance
+criteria.
 
-Repository controls such as `AGENTS.md`, CI, this document, and revalidation scripts guide development and external tooling. They are not AudiaCore runtime/product layers.
-
-## Layer hypothesis under test
+## Accepted foundation model
 
 ```text
 future application/domain authority
               |
-application composition + policy + observability edge
+application/bootstrap composition + policy + presentation/observability edge
               |
 application capabilities
               |
 native host implementation
               |
-host contracts + authorities
+host contracts + explicit authorities
               |
 pure foundation semantics
               |
 core
 ```
 
-The clean-room rebuild may simplify this structure whenever a proposed boundary cannot justify itself.
+Stage 8 validated this model for the accepted scope. Future target capabilities
+build above it unless a concrete proof demonstrates that a Stage 8 boundary
+itself blocks a required target.
 
-## Global invariants
+## Global accepted invariants
 
-- Dependencies flow downward only.
+- Dependencies and semantic vocabulary flow downward/inward only.
 - Core remains capability-neutral and effect-free.
 - Pure foundation semantics remain deterministic and effect-free.
-- Configuration acquisition belongs at an application edge; resolved configuration carries provenance.
-- Policies are validated typed behaviour values and can be built from config or any other source.
-- Authorities grant effects; config or policy does not implicitly grant authority.
-- Native effects do not leak into semantic layers.
-- One stable error code identifies one semantic condition.
+- Configuration resolution does not acquire sources or application policy.
+- Application policy expresses behaviour intent; capability requests are narrow
+  inputs, not policy/configuration objects.
+- Authorities grant effects independently of config/policy.
+- Native effects cross narrow host contracts and remain in native adapters.
 - Stable error identity is separate from configured human-facing presentation.
-- Component-owned `errors.yaml` files own canonical message templates, kinds, and resolutions; there is no authored global all-errors file.
-- Error-message templates resolve only explicit mapping data and never traverse arbitrary Rust objects.
-- Domain events, operational tracing, and ordered execution output remain separate contracts.
-- No service locator, global registry, generic manager layer, speculative provider framework, or abstraction without a proven consumer.
+- Component-owned `errors.yaml` files own canonical presentation definitions.
+- Domain events, operation receipts/evidence, operational tracing, execution
+  output/artifacts, status projections, and diagnostics are separate concepts.
+- No service locator, global registry, generic manager layer, provider registry,
+  or speculative plugin framework is part of the accepted foundation.
+- `Application<C>` is an opaque caller-chosen composition seam, not a canonical
+  all-components container.
 
-## Stage status
+## Stage acceptance index
 
-| Stage | Layer / proof | Status |
-| --- | --- | --- |
-| 0 | Repository + build discipline | ACCEPTED |
-| 1 | Core | ACCEPTED |
-| 2 | Stable error identity | ACCEPTED + CORRECTED |
-| 3A | Pure deterministic primitives | ACCEPTED + TEMPLATE CORRECTED |
-| 3B | Configuration | ACCEPTED |
-| 4A | File host contract + authority | ACCEPTED |
-| 4B | Process host contract + authority | ACCEPTED |
-| 5A | Native file effects + containment | ACCEPTED |
-| 5B | Native process effects + lifecycle | ACCEPTED |
-| 6A | Events capability | ACCEPTED |
-| 6B | Workflow capability | ACCEPTED |
-| 6C | Time capability | ACCEPTED |
-| 6D | Managed-config capability | ACCEPTED |
-| corrective | Configured error presentation + template realignment | ACCEPTED |
-| 7 | Composition + request + observability proof | ACCEPTED |
-| 8 | Full layer-lock audit | ACCEPTED |
+| Stage | Proof | Accepted head | Workflow | Status |
+| --- | --- | --- | --- | --- |
+| 0 | Repository/build discipline | `def74266e38e69553b3481978a74d9a13ed97f57` | #2 / `32550330851` | ACCEPTED |
+| 1 | Core identity + opaque composition | `d626ef9886e4ad9eb8ae23f46ea8ee4b80e26126` | #16 / `32550518423` | ACCEPTED |
+| 2 | Stable error identity | `b87ed88b8c3d43efcb47d6564a5932505916479e` | #30 / `32550714414` | ACCEPTED + LATER CORRECTED |
+| 3A | Sensitive/template/reconcile primitives | `1278f66bf720ed3bbb5d3c05cfb77f62ea5f8d55` | #52 / `32551016872` | ACCEPTED + TEMPLATE CORRECTED |
+| 3B | Configuration resolution/provenance | `05031f8f5351381224d1848933ff577426ce98c7` | #72 / `32552433778` | ACCEPTED |
+| 4A | File host contract + authority | `a467d1cff5ff8b5330e399c12409da08bafbab9f` | #90 / `32552758268` | ACCEPTED |
+| 4B | Process host contract + authority | `df7c6685b8e2048035ef70367ed7e0f9f7043ad6` | #106 / `32553116555` | ACCEPTED |
+| 5A | Native file effects/containment | `43453a48f5da0564f83aa56f381879f9bb710c7c` | #130 / `32553515690` | ACCEPTED |
+| 5B | Native process effects/lifecycle | `4baf0b3a491feb8b550f1e3ad4a82f40f1d15a16` | #154 / `32554534159` | ACCEPTED |
+| 6A | Events | `4fdbd7c7a0fa10e6a16af60db788f9cb3c81b088` | #178 / `32555075146` | ACCEPTED |
+| 6B | Workflow transition primitives | `8964a27ba4b7a78d047249dc10ede482cc37a561` | #198 / `32555734185` | ACCEPTED |
+| 6C | Time/timer primitives | `2e4c770f473ef3f5177a830590160bd9510ec8b9` | #218 / `32556194161` | ACCEPTED |
+| 6D | Managed whole-file desired-state capability | `1b99cf2d6558844b10583d130b30b9200aa41b8c` | #236 / `32556604138` | ACCEPTED |
+| corrective | Configured errors + template contract | `9302e83bea79a7ce82d2fd542363ac1b79ed9f97` | #302 / `32559461700` | ACCEPTED |
+| 7 | Application composition/request/observability proof | `9ee04ce0d57aee0a00707765e894f245efaf3941` | #338 / `32566520037` | ACCEPTED |
+| 8 | Full layer/dependency/supply-chain audit | `28ba554b1cd46bb56838ed5f9d9cc20a5881c391` | #446 / `32624993669` | ACCEPTED |
 
-## Accepted checkpoints
+## What each stage established
 
 ### Stage 0 — repository/build discipline
 
-Accepted head: `def74266e38e69553b3481978a74d9a13ed97f57`  
-Workflow run: `32550330851` (#2) — Ubuntu/macOS/Windows passed.
-
-Repository/toolchain/hygiene discipline existed before product code. `AGENTS.md` is retained as external contributor/coding-tool guidance, not as a runtime layer.
+Repository controls, pinned toolchain discipline, cross-platform CI, and
+architecture-gate conventions were established before product layers. Repository
+guidance such as `AGENTS.md` is not a runtime/product layer.
 
 ### Stage 1 — core
 
-Accepted head: `d626ef9886e4ad9eb8ae23f46ea8ee4b80e26126`  
-Workflow run: `32550518423` (#16) — Ubuntu/macOS/Windows passed.
+Accepted application/execution/correlation identity, identity-only execution
+context, and opaque `Application<C>`. Capability/component taxonomy, lifecycle,
+registries, I/O, policy, authority, provider, serialization, and runtime concepts
+were deliberately excluded from core.
 
-Accepted only application/execution/correlation identity, identity-only `ExecutionContext`, and opaque `Application<C>`. Generic lifecycle, diagnostics, capability/component taxonomy, policy/authority, registries, configuration, I/O, tracing, serialization, runtimes, and provider semantics were rejected from core.
+### Stage 2 and corrective presentation work
 
-### Stage 2 — stable error identity
-
-Original accepted head: `b87ed88b8c3d43efcb47d6564a5932505916479e`  
-Workflow run: `32550714414` (#30) — Ubuntu/macOS/Windows passed.
-
-The original Stage 2 acceptance correctly established zero-dependency `ErrorCode`, prefix-derived category, typed `CodedError`, and repository-wide stable-code enforcement, but incorrectly allowed canonical message/resolution ownership to enter the identity layer through static `ErrorDefinition`. That presentation portion was later reopened and corrected rather than treated as a permanent contract.
-
-The corrected invariant is: `audiacore-errors` owns only stable code/category identity. Typed errors retain dynamic diagnostic context in their owning crates. Human-facing presentation belongs above this layer in configured component-owned catalogues.
-
-No error registry, logger, serializer, transport envelope, manager, or universal base-error hierarchy is owned here.
+`audiacore-errors` ultimately owns stable code/category identity only. Typed
+owning-crate errors retain diagnostic context. Human-facing canonical
+message/kind/resolution definitions live in component-owned `errors.yaml`
+catalogues and are rendered by caller-owned presentation machinery.
 
 ### Stage 3A — pure deterministic primitives
 
-Original accepted head: `1278f66bf720ed3bbb5d3c05cfb77f62ea5f8d55`  
-Workflow run: `32551016872` (#52) — Ubuntu/macOS/Windows passed.
-
-Accepted `audiacore-sensitive`, `audiacore-template`, and `audiacore-reconcile`. Each remains effect-free and owns no application identity or native effects.
-
-The template implementation was later corrected to the established mapping-only contract: `{dotted.path}` placeholders resolve only through explicitly supplied nested JSON-like mappings, including hyphenated keys. No arbitrary Rust object traversal, ambient lookup, I/O, or double-brace flat-slot syntax is part of the accepted contract.
+Accepted sensitive values, mapping-only templates, and pure reconciliation.
+Templates resolve explicit JSON-like mapping data only; reconciliation owns only
+desired-versus-observed planning.
 
 ### Stage 3B — configuration
 
-Accepted head: `05031f8f5351381224d1848933ff577426ce98c7`  
-Workflow run: `32552433778` (#72) — Ubuntu/macOS/Windows passed.
+Accepted ordered in-memory TOML layers, recursive override, typed Serde
+resolution, and exact ordered-input provenance. Source discovery, filesystem/env
+acquisition, remote configuration, and application policy remain outside the
+resolver.
 
-Accepted ordered in-memory TOML layers, recursive later-layer override, typed Serde resolution, exact ordered-input provenance revision, retained ordered layer identities, and coded failures.
+### Stages 4A/4B — host contracts and authority
 
-Clean-room decisions:
+Accepted narrow file/process effect ports plus explicit authority scopes. Host
+contracts do not own application policy, recipes, Managed Content ownership,
+providers, or plugin/package semantics.
 
-- Figment was rejected; direct `serde + toml` is sufficient.
-- Source discovery, filesystem/environment acquisition, remote configuration, and policy semantics remain outside the crate.
-- `ResolvedConfig<T>` has no convenience API that silently discards provenance.
-- Revalidation caught and fixed a `Default` provenance-initialization mismatch.
+### Stages 5A/5B — native effects
 
-### Stage 4A — file host contract
-
-Accepted head: `a467d1cff5ff8b5330e399c12409da08bafbab9f`  
-Workflow run: `32552758268` (#90) — Ubuntu/macOS/Windows passed.
-
-Accepted absolute `FileReadAuthority` / `FileWriteAuthority` and only `FileHost::read_optional`, `write`, and `remove`.
-
-Clean-room reductions: no mandatory `read`, no lexical `allows(path)`, no list/watch/directory API, and no storage/service/manager abstraction. Canonicalization and safe containment belong to native implementation.
-
-### Stage 4B — process host contract
-
-Accepted head: `df7c6685b8e2048035ef70367ed7e0f9f7043ad6`  
-Workflow run: `32553116555` (#106) — Ubuntu/macOS/Windows passed.
-
-Accepted absolute executable allow-list authority, absolute requested executable/current directory, sensitive environment values, ambient environment disabled by default, explicit stdio modes, owned stream transfer, and direct-child `try_wait` / `wait` / `kill`.
-
-Clean-room reductions: borrowed stdio accessors, one-shot `run`, generic async host futures, process managers/registries/schedulers, network host, and secret-provider host were rejected. Process authority is launch authority only, not a sandbox or descendant process-tree grant.
-
-### Stage 5A — native file effects
-
-Accepted head: `43453a48f5da0564f83aa56f381879f9bb710c7c`  
-Workflow run: `32553515690` (#130) — Ubuntu/macOS/Windows passed.
-
-Accepted canonical authority-root enforcement, existing-directory requirement, authority-relative resolution, tested parent/symlink escape rejection, optional reads, atomic replacement, and remove. Atomic durability is a private `file_store` module inside `audiacore-host-native`; no public/workspace file-store layer exists.
-
-The portable implementation does not claim hostile-concurrent-filesystem race-proof sandboxing; that stronger claim would require a deliberate handle-relative/platform-specific design.
-
-### Stage 5B — native process effects
-
-Accepted head: `4baf0b3a491feb8b550f1e3ad4a82f40f1d15a16`  
-Workflow run: `32554534159` (#154) — Ubuntu/macOS/Windows passed.
-
-Accepted an isolated `process.rs` implementation with its own `NativeProcessError`; canonical requested-program/allow-list comparison; canonical existing working-directory validation; direct native stdio mapping; deny-by-default ambient environment with explicit sensitive insertion; owned child stream transfer; `try_wait`, `wait`, and `kill`; and best-effort direct-child kill+wait on dropped live handles.
-
-Cross-platform tests use the test executable itself rather than shell-specific commands to prove unauthorized launch rejection, explicit environment insertion with ambient `PATH` cleared, piped output, working-directory rejection, lifecycle observation, termination, and reaping.
-
-No generic cross-effect native error hierarchy, async runtime, provider/session abstraction, process manager, or descendant-tree containment claim was introduced.
+Accepted native file/process adapters isolated from semantic layers. Filesystem
+operations use capability-relative containment through `cap-std`; process
+launch authority is an allow-list, not a descendant sandbox.
 
 ### Stage 6A — events
 
-Accepted head: `4fdbd7c7a0fa10e6a16af60db788f9cb3c81b088`  
-Workflow run: `32555075146` (#178) — Ubuntu/macOS/Windows passed.
-
-Accepted typed event/stream/causation identity; core correlation identity on envelopes; caller-owned monotonic sequence assignment with checked exhaustion; explicit `EventPolicy`; bounded/unbounded in-memory retention; retained iteration; and typed cursor paging with caught-up/expired/ahead semantics.
-
-Cursor paging earns its place because bounded retention otherwise makes incremental observation ambiguous: a consumer must be able to distinguish an available cursor from evidence already evicted and from a cursor ahead of the stream.
-
-Clean-room reductions:
-
-- every `EventStream` is constructed with an explicit `EventPolicy`; there is no `EventStream::bounded(...)` shortcut;
-- the redundant `after(sequence)` convenience iterator is omitted; `iter()` is the retained-view API and cursor paging is the incremental-read API;
-- one neutral capability-local `EventError` replaces the misleading policy-returning-`EventStreamError` naming.
-
-No event bus, broker, publisher/subscriber registry, queue, transport, retry engine, persistence, durable replay, scheduler, tracing, config, host, or native-effect dependency was introduced.
+Accepted typed streams, caller-owned sequencing, explicit retention policy, and
+cursor paging. No event bus, broker, transport, retry engine, persistence,
+scheduler, or global publisher registry was introduced.
 
 ### Stage 6B — workflow
 
-Accepted head: `8964a27ba4b7a78d047249dc10ede482cc37a561`  
-Workflow run: `32555734185` (#198) — Ubuntu/macOS/Windows passed.
-
-Accepted validated workflow identity; workflow-local `Running` / `Completed` / `Failed` status; domain-owned transition decisions; effects represented only as ordered data; explicit optimistic expected revision; checked monotonic revision; terminal/revision/exhaustion rejection before domain logic; stable coded boundary failures; receipts; and owned snapshots containing instance identity, revision, status, and state.
-
-Clean-room decisions:
-
-- the implicit-current-revision `apply(...)` convenience was removed; transitions use the explicit `apply_at(...)` boundary;
-- `WorkflowSnapshot` remains because state/revision/status form one consistency checkpoint, and `WorkflowInstance::restore(...)` proves deterministic restoration without introducing serialization or persistence ownership;
-- workflow identity validation keeps its small non-generic `WorkflowIdError`, while transition-time failures use `WorkflowError<E>` so domain error context remains typed without forcing an irrelevant generic parameter into identity construction;
-- state mutation occurs only after the revision checks and a successful domain decision, so a rejected decision leaves the workflow instance unchanged.
-
-No core/events/config/host/native dependency, clock, scheduler, retry/backoff, async runtime, task executor, compensation engine, persistence/repository abstraction, workflow manager, or registry was introduced.
+Accepted deterministic workflow-local transition decisions, explicit optimistic
+revision, receipts, and restorable snapshots. No scheduler, retry engine,
+compensation system, persistence repository, workflow manager, or runtime was
+introduced.
 
 ### Stage 6C — time
 
-Accepted head: `2e4c770f473ef3f5177a830590160bd9510ec8b9`  
-Workflow run: `32556194161` (#218) — Ubuntu/macOS/Windows passed.
+Accepted caller-supplied timestamps/deadlines and deterministic timer-set
+semantics. No clock provider, sleeping, scheduler, runtime, or global timer
+registry was introduced.
 
-Accepted absolute caller-supplied millisecond `Timestamp`; `Deadline`; validated `TimerId`; and a caller-owned deterministic `TimerSet` supporting explicit construction, arm, cancel, next-deadline observation, and ordered due draining.
+### Stage 6D — managed whole-file desired state
 
-Clean-room reductions:
+Accepted the current `audiacore-managed-config` capability:
 
-- the old `Timestamp::checked_add(Duration)` API was removed because converting `Duration::as_millis()` would silently discard sub-millisecond precision and no accepted consumer yet requires duration arithmetic;
-- the old public non-mutating `due()` view was removed; `drain_due(now)` is the proven transition boundary;
-- timer lookup, `len`, `is_empty`, and implicit `Default` construction were removed as unproven conveniences;
-- deterministic due order is explicit: deadline timestamp first, then `TimerId` as the stable tie-breaker;
-- `TimerSet::new()` deliberately remains explicit; the Clippy `new_without_default` lint is narrowly allowed and the architecture gate forbids silently restoring `Default`.
+```text
+optional whole-file observation
+      + desired optional bytes
+      -> pure reconcile plan
+      -> create | replace | delete | noop
+      -> apply through explicit file authority
+```
 
-No clock provider, system-time acquisition, sleeping, scheduler, task runtime, retry/backoff, global timer registry, Core, Events, Workflow, Config, Host, or Native dependency was introduced.
+This is **not Managed Content**. It does not own partial/structured content,
+contribution identity, prune/restore rights, coordinated multi-resource changes,
+or rollback semantics. Managed Content is now recorded as the required target
+higher capability in `target-state.md`.
 
-## Stage 6 — application capabilities
+### Stage 7 — application-edge proof
 
-Capabilities are revalidated independently. They may use lower semantic contracts but may not acquire configuration, perform unmediated native I/O, own global runtime infrastructure, or turn policy into authority.
+Accepted one narrow proving composition around `ManagedConfigComposition<H>` to
+demonstrate direct typed composition, source-independent capability requests,
+independently supplied authority, configured error presentation, sensitive-value
+redaction, native effect execution, and edge-owned structured tracing.
 
-### Stage 6D — managed configuration
+That concrete composition is explicitly not the canonical future application
+shape and must not accumulate every future capability in
+`audiacore-application`.
 
-Accepted head: `1b99cf2d6558844b10583d130b30b9200aa41b8c`  
-Workflow run: `32556604138` (#236) — Ubuntu/macOS/Windows passed.
+### Stage 8 — full layer lock
 
-Accepted optional observation through `FileHost`, pure desired/observed reconciliation, create/replace/delete/noop application through caller-supplied `FileWriteAuthority`, and stable typed boundary errors. Whole-file lifecycle responsibility remains an explicit caller precondition rather than an ownership claim encoded by this capability. Host failures retain their typed source.
+The full repository was re-audited for both Cargo direction and semantic
+ownership. Dependency admission covers normal/dev/build/target-specific direct
+edges, while `cargo-deny` gates advisories/licenses/sources across the transitive
+graph.
 
-Parsing, watching, retries, scheduling, generic receipts/effect IDs, ownership proof, multi-writer coordination, and CAS behaviour remain deliberately outside the capability.
+Final accepted Stage 8 head:
+`28ba554b1cd46bb56838ed5f9d9cc20a5881c391`.
 
-### Cross-cutting correction — configured errors + template contract
+Final validation run:
+`32624993669` (#446), successful on Ubuntu 24.04, macOS 15, and Windows 2025.
 
-Accepted corrective head: `9302e83bea79a7ce82d2fd542363ac1b79ed9f97`  
-Workflow run: `32559461700` (#302) — Ubuntu/macOS/Windows passed with the committed lockfile.
+No production layer inversion requiring redesign was found.
 
-This correction reopened only the cross-cutting presentation assumptions, not the accepted capability semantics:
+## Post-Stage-8 rule
 
-- removed hard-coded canonical message/resolution ownership from `audiacore-errors` and capability Rust constants;
-- retained stable `ErrorCode` identity and typed diagnostic errors;
-- restored `CON` = constraint and `RES` = resource semantics and tightened stable-code validation;
-- moved 27 canonical definitions into nine component-owned `errors.yaml` files;
-- added caller-owned `audiacore-error-catalog` with strict YAML validation, duplicate rejection, provenance, explicit whole-definition overlays, and no discovery/global singleton;
-- restored single-brace dotted mapping templates and bounded JSON-like message contexts;
-- added architecture enforcement that production stable codes and owner-local configured definitions match exactly;
-- retained bootstrap-safe non-catalogue failures for catalogue loading/rendering infrastructure.
+Revalidation is complete; future work is target-capability development, not an
+indefinite extension of the clean-room audit.
 
-## Stage 7 — composition + request + observability proof
+Before implementing a new production slice:
 
-Accepted head: `9ee04ce0d57aee0a00707765e894f245efaf3941`  
-Workflow run: `32566520037` (#338) — Ubuntu/macOS/Windows passed with the committed lockfile and immutable CI.
+1. identify its entry in `target-state.md`;
+2. confirm its owner against `layer-lock.md`;
+3. define the minimum concrete proof and exclusions in `roadmap.md` or the stage
+   plan;
+4. update target status when accepted.
 
-Accepted a narrow `audiacore-application` edge proving the lower layers compose without a service container or runtime framework:
-
-- `Application<C>` carries an ordinary typed `ManagedConfigComposition<H>`; no service locator, component registry, provider registry, global context, or dependency container was introduced;
-- `ManagedConfigRequest` is source-independent and contains capability inputs only. The proof builds the same request both directly and from `ResolvedConfig<T>`; configuration is a proof/dev dependency rather than a reusable request dependency;
-- file read/write authorities are supplied separately from the request, so configuration cannot grant effects;
-- the concrete `NativeFileHost` remains a proof/dev dependency rather than leaking into the reusable composition API;
-- a real native create is exercised and verified from the filesystem;
-- a real outside-authority operation is rejected, retains `IO-MCONFIG-001`, and is then rendered through the caller-owned managed-config error catalogue;
-- `MessageContext` is explicit JSON-like mapping data, recognized `Sensitive<T>` values are projected as `[REDACTED]`, and configured presentation failure falls back deterministically while preserving the original stable code and avoiding diagnostic-text leakage;
-- structured `tracing` spans/events are emitted at the application execution edge with application, execution, correlation, outcome, and stable error-code fields;
-- the tracing subscriber exists only in the application proof, not in foundation/capability crates;
-- `ErrorCategory::as_str()` was re-earned as stable category identity because Stage 7 has a concrete fallback/observability consumer; `ErrorCode` presentation and hard-coded canonical messages were not restored;
-- architecture gates enforce the direct-composition shape, dependency split, edge-owned observability, redaction/fallback tests, and real native failure-to-configured-presentation path.
-
-No global registry, runtime container, scheduler, manager layer, async runtime, configuration-source coupling in the reusable request, or native-host coupling in the reusable application API was introduced.
-
-## Stage 8 — full layer-lock audit
-
-Validated implementation head: `240200cfa34a78b01ba6503814ec1d936412f791`  
-Workflow run: `32624528904` (#436) — Ubuntu 24.04 / macOS 15 / Windows 2025 and the supply-chain gate passed.
-
-Stage 8 re-audited the full repository end to end rather than accepting an acyclic Cargo graph as sufficient. The resulting layer model is accepted for the current scope:
-
-- dependency direction and semantic vocabulary both flow inward/downward; zero-dependency core, stable error identity, and pure reconciliation remain free of effects and higher-layer concepts;
-- configuration resolves already-acquired data and retains provenance without acquiring sources or policy;
-- host crates define narrow effect ports plus explicit scope values; native adapters own operating-system mechanics;
-- `audiacore-managed-config` composes pure reconciliation with host ports and explicit file authority without acquiring native-host or configuration-source dependencies;
-- the application-edge proof demonstrates source-to-request conversion while `audiacore-application` itself owns typed composition, configured presentation and operational tracing without a service locator, dependency container or global registry;
-- `cap-std` 4.0.3 is adopted only in `audiacore-host-native`; production filesystem target operations are directory-capability-relative and the public `FileHost` contract is unchanged;
-- public file authority values are explicit scope descriptors, not an in-process sandbox or an unforgeable capability by themselves. Filesystem containment is enforced at the native effect boundary by the acquired `cap_std::fs::Dir`. `ProcessAuthority` remains launch authorization only and does not sandbox descendants;
-- a parser-based direct-dependency admission gate requires third-party dependencies to be approved once in `[workspace.dependencies]` and inherited by members, while local path dependencies must resolve to declared workspace members;
-- a SHA-pinned `cargo-deny` gate rejects unapproved sources, checks licenses and advisories, and covers the supported target families;
-- the audit removed two unused internal edges (`audiacore-reconcile -> audiacore-errors` and the application proof's direct dev dependency on `audiacore-reconcile`) and retained Cargo's generated lockfile result;
-- the Stage 7 architecture assertion was updated to the accepted dependency graph rather than restoring an unused dependency;
-- no product functionality, provider framework, scheduler, async runtime, generic manager, service registry or speculative abstraction was added to satisfy the audit.
-
-External pattern validation supports these boundaries: ports-and-adapters/dependency-inversion guidance keeps infrastructure behind abstractions; capability-oriented filesystem APIs keep effects relative to acquired handles; controller/reconciliation patterns separate desired state from current state; `tracing` keeps subscriber installation at executable/application edges; and `cargo-deny` provides established advisory/license/source policy enforcement. `docs/architecture/layer-lock.md` records the enduring contract and reference links.
+Do not treat absence from Stage 0–8 as evidence that a recovered target
+capability was rejected. Conversely, do not introduce a target capability into a
+lower layer merely because it is important to the finished platform.
