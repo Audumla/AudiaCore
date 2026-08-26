@@ -1,0 +1,12 @@
+[package]
+name = "audiacore-managed-content"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+audiacore-errors = { path = "../audiacore-errors" }
+audiacore-host = { path = "../audiacore-host" }
+audiacore-reconcile = { path = "../audiacore-reconcile" }

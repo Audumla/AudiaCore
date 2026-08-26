@@ -1,0 +1,46 @@
+# Stage 8 transitive dependency policy.
+# cargo-deny 0.20.2, run by the SHA-pinned official action in revalidation.yml.
+
+[graph]
+# Evaluate target-specific dependency edges for every supported OS family.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+
+[advisories]
+# cargo-deny 0.20 denies advisory findings by default. Exceptions must be
+# explicit, justified, and reviewed here rather than silently downgraded.
+ignore = []
+
+[licenses]
+# Keep the foundation on established permissive licenses. Adding another
+# license family is a dependency-policy change and requires review.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+]
+confidence-threshold = 0.8
+
+[licenses.private]
+ignore = false
+registries = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[sources.allow-org]
+github = []
+gitlab = []
+bitbucket = []

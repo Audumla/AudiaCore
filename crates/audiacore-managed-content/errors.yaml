@@ -1,0 +1,3 @@
+IO-MCONTENT-001:
+  message: "Managed Content host operation failed."
+  resolution: "Inspect the underlying host error and verify the target authority and storage state."
