@@ -36,15 +36,24 @@ jobs:
       - name: Prove identical runtime source
         shell: bash
         run: cmp proofs/stage9/path-app/src/main.rs proofs/stage9/git-app/src/main.rs
+      - name: Verify locked source identities
+        shell: bash
+        run: |
+          if grep -Fq 'git+' proofs/stage9/path-app/Cargo.lock; then
+            echo 'path proof unexpectedly contains a Git source' >&2
+            exit 1
+          fi
+          grep -Fq 'git+https://github.com/Audumla/AudiaCore.git?rev=fe8e03acef6bda893c1fee5d182fa2f8e4890a3e#fe8e03acef6bda893c1fee5d182fa2f8e4890a3e' proofs/stage9/git-app/Cargo.lock
+          grep -Fq 'git+https://github.com/Audumla/AUDiaGentic.git?rev=16ee55c424d045cf444ca4f67fb5b3076499b8dd#16ee55c424d045cf444ca4f67fb5b3076499b8dd' proofs/stage9/git-app/Cargo.lock
       - name: Check proof formatting
         shell: bash
         run: |
           cargo +1.95.0 fmt --manifest-path proofs/stage9/local-memory-host/Cargo.toml -- --check
           cargo +1.95.0 fmt --manifest-path proofs/stage9/path-app/Cargo.toml -- --check
           cargo +1.95.0 fmt --manifest-path proofs/stage9/git-app/Cargo.toml -- --check
-      - name: Run local-path source proof
+      - name: Run locked local-path source proof
         shell: bash
-        run: cargo +1.95.0 run --manifest-path proofs/stage9/path-app/Cargo.toml
-      - name: Run exact-revision Git source proof
+        run: cargo +1.95.0 run --locked --manifest-path proofs/stage9/path-app/Cargo.toml
+      - name: Run locked exact-revision Git source proof
         shell: bash
-        run: cargo +1.95.0 run --manifest-path proofs/stage9/git-app/Cargo.toml
+        run: cargo +1.95.0 run --locked --manifest-path proofs/stage9/git-app/Cargo.toml
