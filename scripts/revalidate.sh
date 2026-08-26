@@ -304,9 +304,10 @@ assert_no_match 'ServiceRegistry|ProviderRegistry|PolicyRegistry|ServiceLocator|
   "registry/container semantics returned" crates/*/src
 
 grep -Fq 'Sources provide data' docs/architecture/layer-lock.md || fail "governing layer rule missing"
-grep -Fq 'no current application-composition crate' docs/architecture/layer-lock.md || fail "proof application retirement missing"
-grep -Fq 'Componentized application composition' docs/architecture/target-state.md || fail "target composition missing"
-grep -Fq 'Extension identity + composition' docs/architecture/target-state.md || fail "target extension composition missing"
+grep -Fq 'no current application-assembly crate' docs/architecture/layer-lock.md || fail "application assembly boundary missing"
+grep -Fq 'Application assembly' docs/architecture/target-state.md || fail "target application assembly missing"
+grep -Fq 'External component sourcing' docs/architecture/target-state.md || fail "target external sourcing missing"
+grep -Fq 'Managed package lifecycle' docs/architecture/target-state.md || fail "target package lifecycle missing"
 grep -Fq 'Managed Content partial/structured ownership' docs/architecture/target-state.md || fail "target Managed Content expansion missing"
 
 echo "AUDIACORE_REVALIDATION_OK"
