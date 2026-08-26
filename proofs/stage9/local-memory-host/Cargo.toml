@@ -1,0 +1,9 @@
+[package]
+name = "audiacore-stage9-memory-host"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[dependencies]
+audiacore-host = { path = "../../../crates/audiacore-host" }
