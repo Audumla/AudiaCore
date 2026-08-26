@@ -1,0 +1,12 @@
+[package]
+name = "audiacore-stage9-git-proof"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[dependencies]
+audiacore-core = { git = "https://github.com/Audumla/AudiaCore.git", rev = "fe8e03acef6bda893c1fee5d182fa2f8e4890a3e", package = "audiacore-core" }
+audiacore-host = { git = "https://github.com/Audumla/AudiaCore.git", rev = "fe8e03acef6bda893c1fee5d182fa2f8e4890a3e", package = "audiacore-host" }
+audiacore-managed-content = { git = "https://github.com/Audumla/AudiaCore.git", rev = "fe8e03acef6bda893c1fee5d182fa2f8e4890a3e", package = "audiacore-managed-content" }
+audiacore-stage9-memory-host = { git = "https://github.com/Audumla/AUDiaGentic.git", rev = "16ee55c424d045cf444ca4f67fb5b3076499b8dd", package = "audiacore-stage9-memory-host" }
