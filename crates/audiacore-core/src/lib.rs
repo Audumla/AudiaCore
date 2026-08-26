@@ -102,6 +102,10 @@ impl<C> Application<C> {
         &self.composition
     }
 
+    pub const fn composition_mut(&mut self) -> &mut C {
+        &mut self.composition
+    }
+
     pub fn into_composition(self) -> C {
         self.composition
     }
@@ -146,13 +150,15 @@ mod tests {
     }
 
     #[test]
-    fn application_composition_is_opaque_and_replaceable() {
-        let application = Application::new(ApplicationId::new("demo").unwrap(), ("events", 4_u32));
+    fn application_composition_is_opaque_mutable_and_replaceable() {
+        let mut application =
+            Application::new(ApplicationId::new("demo").unwrap(), ("events", 4_u32));
 
+        application.composition_mut().1 = 8;
         let mapped = application.map(|(_, retention)| retention as u64);
 
         assert_eq!(mapped.id().as_str(), "demo");
-        assert_eq!(*mapped.composition(), 4_u64);
-        assert_eq!(mapped.into_composition(), 4_u64);
+        assert_eq!(*mapped.composition(), 8_u64);
+        assert_eq!(mapped.into_composition(), 8_u64);
     }
 }
