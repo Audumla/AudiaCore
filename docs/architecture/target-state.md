@@ -21,11 +21,12 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Managed Content receipts/prune/restore/compensation | REQUIRED / DEFERRED | higher Managed Content/application boundary |
 | Probe / observation | REQUIRED / DEFERRED | sibling capability |
 | Software lifecycle | REQUIRED / DEFERRED | sibling capability |
-| Componentized application composition | REQUIRED / DEFERRED | bootstrap/application edge; no current crate |
+| Application assembly | REQUIRED / DEFERRED | application/bootstrap edge; no current crate |
+| External component sourcing | REQUIRED / DEFERRED | application/build/package-source edge |
+| Component/extension identity + compatibility | REQUIRED / DEFERRED | application/bootstrap edge; add only what real proofs require |
+| Managed package lifecycle | REQUIRED / DEFERRED | later software/package edge; separate from composition |
 | Durable execution/orchestration | PARTIAL | workflow/events/time primitives only |
 | Artifacts / execution output | REQUIRED / DEFERRED | application/runtime edge |
-| Extension identity + composition | REQUIRED / DEFERRED | bootstrap/extension edge |
-| External extension sources + lifecycle | REQUIRED / DEFERRED | package/source edge |
 | Provider capability contract | REQUIRED / DEFERRED | provider capability layer |
 | ACP-backed provider adapters + negotiation | REQUIRED / DEFERRED | provider/interop edge |
 | MCP / A2A / ASA / API / control channels | REQUIRED / DEFERRED | interoperability/application edges |
@@ -35,17 +36,21 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Global service locator/provider registry | REJECTED | nowhere |
 | Generic manager framework | REJECTED | nowhere |
 
-## Composition target
+## Application assembly target
 
 ```text
-configuration / built-ins / external packages
-                -> resolution + compatibility validation
-                -> concrete implementations
+built-ins / local directories / external repositories or packages
+                -> source/package resolution
+                -> compatibility validation where required
+                -> concrete typed implementations
                 -> explicit application/bootstrap composition
+                -> Application<C>
                 -> typed runtime collaborators
 ```
 
-Capability, component, extension, package/source, and configured instance remain distinct identities. First-party and external implementations use the same seam after resolution.
+Source location is a build/bootstrap concern, not runtime capability semantics. First-party and external implementations use the same typed contracts after resolution. Capability, component/extension, package/source, and configured instance remain distinct concepts; introduce explicit identities only when a real composition proof needs them.
+
+Stage 9 must try standard Rust/Cargo source and dependency mechanisms before AudiaCore grows custom resolution infrastructure.
 
 ## Managed Content target
 
