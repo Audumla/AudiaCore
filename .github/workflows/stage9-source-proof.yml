@@ -1,0 +1,50 @@
+name: stage9-source-proof
+
+on:
+  push:
+    branches:
+      - 'stage9/application-assembly-impl'
+  pull_request:
+    paths:
+      - 'proofs/stage9/**'
+      - 'docs/stage9-application-assembly-work.md'
+      - '.github/workflows/stage9-source-proof.yml'
+
+concurrency:
+  group: stage9-source-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  source-proof:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-15
+          - windows-2025
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --no-self-update
+      - name: Prove identical runtime source
+        shell: bash
+        run: cmp proofs/stage9/path-app/src/main.rs proofs/stage9/git-app/src/main.rs
+      - name: Check proof formatting
+        shell: bash
+        run: |
+          cargo +1.95.0 fmt --manifest-path proofs/stage9/local-memory-host/Cargo.toml -- --check
+          cargo +1.95.0 fmt --manifest-path proofs/stage9/path-app/Cargo.toml -- --check
+          cargo +1.95.0 fmt --manifest-path proofs/stage9/git-app/Cargo.toml -- --check
+      - name: Run local-path source proof
+        shell: bash
+        run: cargo +1.95.0 run --manifest-path proofs/stage9/path-app/Cargo.toml
+      - name: Run exact-revision Git source proof
+        shell: bash
+        run: cargo +1.95.0 run --manifest-path proofs/stage9/git-app/Cargo.toml
