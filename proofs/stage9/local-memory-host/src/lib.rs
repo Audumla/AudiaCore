@@ -55,11 +55,7 @@ impl FileHost for MemoryFileHost {
         Ok(())
     }
 
-    fn remove(
-        &self,
-        _authority: &FileWriteAuthority,
-        path: &Path,
-    ) -> Result<(), Self::Error> {
+    fn remove(&self, _authority: &FileWriteAuthority, path: &Path) -> Result<(), Self::Error> {
         self.files
             .lock()
             .expect("memory host lock poisoned")
