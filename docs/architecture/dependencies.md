@@ -29,9 +29,23 @@ No dependency is retained solely because an historical proof used it.
 
 ## Stage 9 source policy
 
-The AudiaCore foundation workspace remains free of Git dependencies. Stage 9 proves external sourcing from a **standalone application outside this workspace**, first with a local path and then with a Git dependency pinned to an exact revision.
+The AudiaCore foundation workspace remains free of Git dependencies.
 
-That proof does not relax foundation dependency admission and does not imply AudiaCore needs a custom source resolver. Reopen this policy only if a later AudiaCore production consumer itself requires a new dependency/source class.
+Stage 9 proved external sourcing from a **standalone application outside this workspace** using both:
+
+- a local path dependency;
+- a Git dependency pinned to an exact revision.
+
+The same application source and AudiaCore contract worked with both source forms, with committed lockfiles and successful Ubuntu/macOS/Windows validation. A concrete AUDiaGentic application then consumed AudiaCore from an exact-revision Git source and passed its own locked three-platform build/test/run matrix.
+
+Therefore:
+
+- external application/component Git sources are an application/build concern, not an AudiaCore workspace dependency class;
+- exact revisions plus committed application lockfiles are the accepted mechanism for the proved Git-source case;
+- the proof does not relax foundation dependency admission;
+- AudiaCore does not need a custom source resolver or registry for this requirement.
+
+Reopen this policy only if a later AudiaCore production consumer itself requires a new dependency/source class, or a concrete application requirement cannot be expressed safely through standard Cargo/package mechanisms. Detailed evidence is in `stage9-application-assembly.md`.
 
 ## Deferred candidates
 
