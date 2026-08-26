@@ -10,3 +10,5 @@ audiacore-core = { path = "../../../crates/audiacore-core" }
 audiacore-host = { path = "../../../crates/audiacore-host" }
 audiacore-managed-content = { path = "../../../crates/audiacore-managed-content" }
 audiacore-stage9-memory-host = { path = "../local-memory-host" }
+
+[workspace]
