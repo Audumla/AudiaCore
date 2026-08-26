@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'revalidation/**'
-      - 'cleanup/**'
   pull_request:
     paths:
       - 'Cargo.toml'

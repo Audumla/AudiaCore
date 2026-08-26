@@ -11,6 +11,7 @@ Canonical records:
 ## Rules
 
 - Build upward from proven contracts. New abstractions require a concrete consumer.
+- After every accepted slice, reassess new constructs and keep only what remains necessary and correctly owned.
 - Dependencies and vocabulary point downward. Lower layers do not acquire application/provider/plugin semantics.
 - Sources provide data; resolution produces validated settings; application policy expresses intent; capabilities receive narrow requests.
 - Policy never grants effect authority. Explicit authorities cross host contracts; native adapters perform effects.
@@ -19,9 +20,10 @@ Canonical records:
 - Managed Content is the canonical capability family. Its current implementation is only the whole-file slice; higher ownership semantics must be earned explicitly.
 - Stable error-code prefixes own error category. Component `errors.yaml` files contain only canonical message and resolution.
 - Keep domain events, operation evidence, tracing, execution output, status, and diagnostics distinct.
-- Application/bootstrap composition, extension discovery, package resolution, and provider selection remain edge responsibilities. Do not introduce a service locator or runtime registry.
+- External source resolution happens before application/bootstrap assembly. Normal runtime receives typed collaborators and does not know whether implementations were built in, local, or externally sourced.
+- Package lifecycle and runtime loading are separate higher concerns; do not fold them into composition by default.
 - First-party and external implementations must use the same typed capability/component seam after resolution.
-- Do not add generic managers, global registries, ambient context, universal component lifecycle traits, or plugin frameworks without multiple concrete consumers.
+- Do not add service locators, generic managers, global registries, ambient context, universal component lifecycle traits, or plugin frameworks without concrete multi-consumer evidence.
 - Direct third-party dependencies are admitted once at the workspace root and must be maintained, proportionate, platform-compatible, and correctly layered.
 - Git history is the archive. Remove obsolete proving code, compatibility aliases, old terminology, generated artifacts, and duplicate instructions from the active tree.
 

@@ -26,7 +26,7 @@ No lower layer may acquire vocabulary, dependencies, source acquisition, authori
 | `audiacore-time` | caller-supplied timestamps/deadlines/timer sets | clocks, sleeps, scheduler, runtime |
 | `audiacore-managed-content` | Managed Content capability; currently whole-file observe/plan/apply | config acquisition, native I/O, application policy, unproved partial ownership |
 
-There is intentionally **no current application-composition crate**. Stage 7 proved direct composition historically; its proving crate is not a permanent product layer. `Application<C>` remains the seam until real application components earn a reusable composition boundary.
+There is intentionally **no current application-assembly crate**. Stage 7 proved direct composition historically; its proving crate is not a permanent product layer. `Application<C>` remains the foundation seam until real applications demonstrate reusable composition semantics.
 
 ## Effect and authority boundary
 
@@ -61,9 +61,11 @@ CODE:
 
 New code categories are added in `audiacore-errors` only when the platform target requires a distinct stable category.
 
-## Composition and extensions
+## Application assembly and external sources
 
-Component selection, extension/package resolution, provider selection, and observability setup belong at application/bootstrap edges. Normal runtime code receives typed collaborators; it does not query registries or containers.
+External source/package resolution happens before bootstrap composition. Once resolved, built-in, local, and external implementations satisfy the same typed contracts; normal runtime code receives collaborators and does not know their source location.
+
+Application/bootstrap edges own implementation selection, compatibility validation where required, concrete wiring, provider selection, and observability setup. Package install/update/remove and runtime-loading mechanisms are separate higher concerns and must not be folded into composition by default.
 
 Do not introduce service locators, dependency containers, global registries, generic managers, universal component lifecycle traits, runtime provider registries, or plugin frameworks without concrete evidence.
 
