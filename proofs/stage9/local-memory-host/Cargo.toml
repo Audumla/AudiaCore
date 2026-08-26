@@ -7,3 +7,5 @@ publish = false
 
 [dependencies]
 audiacore-host = { path = "../../../crates/audiacore-host" }
+
+[workspace]
