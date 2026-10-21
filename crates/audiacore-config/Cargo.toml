@@ -1,0 +1,15 @@
+[package]
+name = "audiacore-config"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+audiacore-errors = { path = "../audiacore-errors" }
+serde = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }

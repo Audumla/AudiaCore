@@ -1,0 +1,11 @@
+[package]
+name = "audiacore-template"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+audiacore-errors = { path = "../audiacore-errors" }
+serde_json = { workspace = true }

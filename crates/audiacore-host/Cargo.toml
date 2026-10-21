@@ -1,0 +1,10 @@
+[package]
+name = "audiacore-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+audiacore-errors = { path = "../audiacore-errors" }
+audiacore-sensitive = { path = "../audiacore-sensitive" }

@@ -1,0 +1,64 @@
+name: audiacore-revalidation
+
+on:
+  push:
+    branches:
+      - 'revalidation/**'
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - 'rust-toolchain.toml'
+      - 'crates/**'
+      - 'scripts/**'
+      - 'docs/architecture/**'
+      - 'AGENTS.md'
+      - 'README.md'
+      - '.github/workflows/revalidation.yml'
+
+concurrency:
+  group: audiacore-revalidation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-15
+          - windows-2025
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      # actions/checkout v7.0.1; immutable SHA required by dependency policy.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Enforce direct dependency admission
+        shell: bash
+        run: python scripts/check-dependency-admission.py
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy --no-self-update
+      - name: Revalidate foundation
+        shell: bash
+        run: bash scripts/revalidate.sh
+
+  supply-chain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # actions/checkout v7.0.1; immutable SHA required by dependency policy.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # EmbarkStudios/cargo-deny-action v2.1.1, bundling cargo-deny 0.20.2.
+      - name: Enforce transitive dependency policy
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
+        with:
+          rust-version: 1.95.0
+          command: check
+          arguments: --all-features
+          command-arguments: advisories licenses sources

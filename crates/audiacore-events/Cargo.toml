@@ -1,0 +1,11 @@
+[package]
+name = "audiacore-events"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+audiacore-core = { path = "../audiacore-core" }
+audiacore-errors = { path = "../audiacore-errors" }
