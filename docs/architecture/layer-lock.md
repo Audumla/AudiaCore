@@ -26,7 +26,7 @@ No lower layer may acquire vocabulary, dependencies, source acquisition, authori
 | `audiacore-time` | caller-supplied timestamps/deadlines/timer sets | clocks, sleeps, scheduler, runtime |
 | `audiacore-managed-content` | Managed Content capability; currently whole-file observe/plan/apply | config acquisition, native I/O, application policy, unproved partial ownership |
 
-There is intentionally **no application-assembly crate**. Stage 9's real AUDiaGentic consumer proved that application-owned typed composition plus `Application<C>` is sufficient. Reusable capabilities remain independent; bootstrap code chooses concrete implementations and owns the composition shape. A reusable assembly layer must not be introduced until multiple concrete applications demonstrate common semantics beyond explicit Rust construction.
+There is intentionally **no current application-assembly crate**. Stage 9's external proof consumer demonstrated that application-owned typed composition plus `Application<C>` is sufficient for the proved requirement. Reusable capabilities remain independent; bootstrap code chooses concrete implementations and owns the composition shape. The greenfield production application/bootstrap surface belongs in this repository above the foundation and must be implemented independently of the legacy AUDiaGentic application line. A reusable assembly layer must not be introduced until multiple concrete applications demonstrate common semantics beyond explicit Rust construction.
 
 ## Effect and authority boundary
 
