@@ -49,11 +49,11 @@ Platform result:
 
 The external fixture was subsequently removed from the live proof branch; its exact proof commit remains available through Git history.
 
-## Gate B — concrete application composition
+## Gate B — external composition proof consumer
 
-The real consumer was implemented in AUDiaGentic under `apps/audiagentic-bootstrap`.
+A temporary Rust proof consumer was implemented in the legacy AUDiaGentic repository under `apps/audiagentic-bootstrap`.
 
-Its application-owned composition contains two independently useful collaborators:
+Its application-owned composition contained two independently useful collaborators:
 
 ```text
 Application<AudiagenticComposition>
@@ -67,11 +67,11 @@ Application<AudiagenticComposition>
         +-- EventStream<BootstrapEvent>
 ```
 
-Normal Rust source contains no Git URL, revision, path-source selection, registry lookup, or package resolver logic. Source selection exists in Cargo metadata only.
+Normal Rust source contained no Git URL, revision, path-source selection, registry lookup, or package resolver logic. Source selection existed in Cargo metadata only.
 
-Concrete consumer commit: `ea383a2fd9c68316d5c72cda837c9ad20d6d3ba1` in `Audumla/AUDiaGentic`.
+Proof consumer commit: `ea383a2fd9c68316d5c72cda837c9ad20d6d3ba1` in `Audumla/AUDiaGentic`.
 
-Concrete validation: `ci-rust-bootstrap` run #2 / `32923571192`.
+Proof validation: `ci-rust-bootstrap` run #2 / `32923571192`.
 
 On Ubuntu 24.04, macOS 15, and Windows 2025 the gate passed:
 
@@ -82,6 +82,8 @@ On Ubuntu 24.04, macOS 15, and Windows 2025 the gate passed:
 - locked executable run.
 
 The executable proved first reconciliation `Created`, second reconciliation `Noop`, and two appended bootstrap events.
+
+This consumer was never an accepted production destination. The attempted integration PR against the legacy AUDiaGentic application line was later closed unmerged after clarifying that the Rust rebuild is greenfield and its production application/bootstrap surface belongs in AudiaCore. The consumer remains valid proof evidence only.
 
 ## Core seam earned by the proof
 
@@ -107,8 +109,9 @@ The proof was intentionally staged before permanent implementation. It surfaced 
 
 1. nested standalone Cargo packages initially inherited the parent workspace; each proof package was made an explicit standalone workspace instead of adding proof crates to AudiaCore's production workspace;
 2. source resolution was first validated unlocked, then lockfiles were generated and the same matrix rerun with `--locked`;
-3. the concrete application gate initially found only a rustfmt line-wrap difference; formatting was corrected and the unchanged design then passed all three platforms;
-4. unrelated AUDiaGentic Python canonical-provider-ID failures were kept out of Stage 9 rather than being hidden or opportunistically changed.
+3. the external composition proof gate initially found only a rustfmt line-wrap difference; formatting was corrected and the unchanged design then passed all three platforms;
+4. unrelated legacy AUDiaGentic Python canonical-provider-ID failures were kept out of Stage 9 rather than being hidden or opportunistically changed;
+5. after the proof, an attempted PR of the Rust consumer into the legacy AUDiaGentic application line was recognized as the wrong integration target and closed unmerged; production implementation remains greenfield in AudiaCore.
 
 These corrections did not require new AudiaCore capability abstractions.
 
@@ -117,7 +120,7 @@ These corrections did not require new AudiaCore capability abstractions.
 | Construct | Decision | Reason |
 | --- | --- | --- |
 | `Application<C>` | KEEP | sufficient opaque composition seam |
-| `Application::composition_mut()` | KEEP | earned by real mutable owned collaborators |
+| `Application::composition_mut()` | KEEP | earned by mutable owned collaborators in the proof |
 | application-owned typed composition struct | KEEP | explicit wiring without framework semantics |
 | Cargo path dependencies | KEEP | sufficient local source mechanism |
 | exact-revision Cargo Git dependencies | KEEP | sufficient external source proof mechanism |
@@ -141,4 +144,4 @@ Cargo/package metadata owns source resolution
                 -> normal runtime is source-location agnostic
 ```
 
-Future extension/provider work must preserve that boundary unless a concrete deployment requirement proves that build-time composition is insufficient.
+The greenfield production bootstrap still needs to be implemented inside AudiaCore. Future application, extension, and provider work must preserve this boundary unless a concrete deployment requirement proves that build-time composition is insufficient.
