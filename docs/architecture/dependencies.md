@@ -36,7 +36,7 @@ Stage 9 proved external sourcing from a **standalone application outside this wo
 - a local path dependency;
 - a Git dependency pinned to an exact revision.
 
-The same application source and AudiaCore contract worked with both source forms, with committed lockfiles and successful Ubuntu/macOS/Windows validation. A concrete AUDiaGentic application then consumed AudiaCore from an exact-revision Git source and passed its own locked three-platform build/test/run matrix.
+The same application source and AudiaCore contract worked with both source forms, with committed lockfiles and successful Ubuntu/macOS/Windows validation. A temporary external proof consumer in the legacy AUDiaGentic repository also consumed AudiaCore from an exact-revision Git source and passed its locked three-platform build/test/run matrix. That consumer was proof evidence only and was not an accepted production integration target.
 
 Therefore:
 
