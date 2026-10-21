@@ -1,63 +1,48 @@
 # AudiaCore roadmap
 
-Stage 8 is closed. Each later slice must prove the smallest real requirement, run the full validation matrix, then reassess every new abstraction before continuing. A planned abstraction is not automatically retained.
+Stages 0–9 are closed as foundation/proof milestones. Each later slice must prove the smallest real requirement, run the relevant validation matrix, then reassess every new abstraction before continuing. A planned abstraction is not automatically retained.
 
-## 9. Application assembly
+## 9. Application assembly — ACCEPTED PROOF
 
-Target: build an application from typed implementations regardless of whether they are built in, in another local directory, or in an external repository/package. Source resolution happens before bootstrap composition; normal runtime receives typed collaborators only.
+Stage 9 proved application-owned typed composition with external source acquisition kept outside normal runtime semantics.
 
-Use standard Rust/Cargo mechanisms first. Do not build a custom package resolver, plugin runtime, registry, container, or universal `Component` trait unless later proofs show a concrete gap.
+Accepted boundary:
 
-### 9.0 Contract lock
+```text
+Cargo/package metadata
+        -> source resolution
+        -> concrete typed implementations
+        -> explicit application/bootstrap construction
+        -> Application<C>
+        -> normal source-agnostic runtime
+```
 
-Docs only.
+Accepted outcomes:
 
-- make external sourcing part of the first composition proof;
-- distinguish source resolution from package lifecycle and runtime loading;
-- keep `Application<C>` opaque;
-- keep Stage 8 production code unchanged.
+- local path and exact-revision Git implementations can satisfy the same AudiaCore contract with identical application source;
+- locked source-equivalence proof passed Ubuntu 24.04, macOS 15, and Windows 2025;
+- a temporary external Rust proof consumer composed Managed Content/native host state and an event stream through an application-owned composition struct;
+- that proof consumer passed rustfmt, Clippy, tests, and execution on all three platforms;
+- `Application<C>` remains the core composition seam and gained only `composition_mut()` for explicitly mutating caller-owned composition state;
+- no custom source resolver, plugin framework, runtime registry, service locator, dependency container, generic composition crate, or universal `Component` trait was justified.
 
-### 9.1 External source proof
+The external consumer lived on the legacy AUDiaGentic line only to prove the boundary. Its integration PR was closed unmerged once the greenfield ownership boundary was clarified. It is not a production destination for the Rust rebuild.
 
-Build a standalone application outside the AudiaCore workspace using an existing AudiaCore contract and at least one implementation outside the application/AudiaCore repository boundary.
+Package install/update/remove, component compatibility metadata, declarative assembly above Cargo, dynamic loading, and WASM remain separate deferred concerns that require their own concrete consumer.
 
-Prove both:
-- local path dependency;
-- Git dependency pinned to an exact revision.
+Proof progression, commits, workflow runs, and lock classification are preserved in `stage9-application-assembly.md`.
+
+## Next implementation checkpoint — greenfield application/bootstrap
+
+Build the first production application/bootstrap surface **inside this AudiaCore repository**, above the accepted foundation.
 
 Acceptance:
-- no AudiaCore production change unless the proof demonstrates a real missing contract;
-- reproducible locked builds;
-- external and local implementations use the same typed contract;
-- source acquisition remains an application/build concern.
-
-Reassess whether Cargo already solves the required source-resolution problem before adding anything.
-
-### 9.2 Typed composition proof
-
-Compose at least two independently useful components, including one externally sourced implementation, through explicit construction into `Application<C>`.
-
-Acceptance:
-- typed construction/injection;
-- no service locator, runtime registry, generic manager, or string-keyed dependency lookup;
-- no reusable composition crate unless multiple real consumers demonstrate common semantics;
-- lifecycle abstractions only if the components actually require shared lifecycle behaviour.
-
-### 9.3 Source equivalence and identity
-
-Prove that built-in/local-path/external-source implementations can satisfy the same contract without changing normal runtime code.
-
-Keep package/source identity separate from configured-instance identity. Add explicit component/compatibility metadata only when Cargo/package metadata cannot express a demonstrated requirement.
-
-### 9.4 Declarative assembly
-
-Only if a real application needs it, allow an application definition to select sources/implementations and produce an explicit build/bootstrap graph.
-
-Prefer build-time assembly. Runtime-loaded native libraries, WASM, or out-of-process extension transports remain separate hypotheses.
-
-### 9.5 Stage 9 lock
-
-Stop and audit the result before further capability work. Classify every new construct as **KEEP**, **MOVE**, **SIMPLIFY**, **REMOVE**, or **DEFER**. Re-run formatting, Clippy, tests, dependency admission, semantic gates, supply-chain checks, Ubuntu/macOS/Windows CI, and reproducible external-source builds.
+- application-owned typed composition;
+- explicit construction/injection into `Application<C>`;
+- source selection remains Cargo/build metadata;
+- no reuse of legacy AUDiaGentic application code as an implementation base;
+- no service locator, dependency container, runtime registry, generic manager, or universal `Component` trait;
+- re-evaluate whether any reusable application crate is actually earned only after the concrete implementation exists.
 
 ## 10. Managed Content higher slices
 

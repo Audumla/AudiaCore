@@ -4,7 +4,7 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 
 | Capability | Status | Current owner/state |
 | --- | --- | --- |
-| Core identity + opaque composition seam | PROVEN | `audiacore-core` |
+| Core identity + opaque composition seam | PROVEN | `audiacore-core`; includes immutable and explicit mutable access to caller-owned `Application<C>` composition |
 | Stable coded errors | PROVEN | `audiacore-errors` |
 | Sensitive values | PROVEN | `audiacore-sensitive` |
 | Message templates + configured presentation | PROVEN | `audiacore-template`, `audiacore-error-catalog` |
@@ -21,8 +21,8 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Managed Content receipts/prune/restore/compensation | REQUIRED / DEFERRED | higher Managed Content/application boundary |
 | Probe / observation | REQUIRED / DEFERRED | sibling capability |
 | Software lifecycle | REQUIRED / DEFERRED | sibling capability |
-| Application assembly | REQUIRED / DEFERRED | application/bootstrap edge; no current crate |
-| External component sourcing | REQUIRED / DEFERRED | application/build/package-source edge |
+| Application assembly | PROVEN | application/bootstrap-owned explicit typed construction into `Application<C>` |
+| External component sourcing | PROVEN | Cargo path and exact-revision Git sources resolved before runtime; locked application dependency graph |
 | Component/extension identity + compatibility | REQUIRED / DEFERRED | application/bootstrap edge; add only what real proofs require |
 | Managed package lifecycle | REQUIRED / DEFERRED | later software/package edge; separate from composition |
 | Durable execution/orchestration | PARTIAL | workflow/events/time primitives only |
@@ -40,7 +40,7 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 
 ```text
 built-ins / local directories / external repositories or packages
-                -> source/package resolution
+                -> Cargo/package resolution
                 -> compatibility validation where required
                 -> concrete typed implementations
                 -> explicit application/bootstrap composition
@@ -50,7 +50,7 @@ built-ins / local directories / external repositories or packages
 
 Source location is a build/bootstrap concern, not runtime capability semantics. First-party and external implementations use the same typed contracts after resolution. Capability, component/extension, package/source, and configured instance remain distinct concepts; introduce explicit identities only when a real composition proof needs them.
 
-Stage 9 must try standard Rust/Cargo source and dependency mechanisms before AudiaCore grows custom resolution infrastructure.
+Stage 9 proved that standard Cargo path and exact-revision Git mechanisms are sufficient for the current external-source requirement. AudiaCore therefore does not own a custom source resolver, package registry, service locator, dependency container, generic composition framework, or universal `Component` lifecycle trait. See `stage9-application-assembly.md` for the permanent proof and validation record.
 
 ## Managed Content target
 
