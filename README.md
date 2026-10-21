@@ -2,7 +2,7 @@
 
 Clean-room Rust foundation for the AUDiaGentic platform.
 
-Stages 0–9 are closed. The active workspace contains only earned reusable contracts and capabilities; proving scaffolding is retained in Git history rather than as production API.
+Stages 0–9 are closed as foundation/proof milestones. The active workspace contains only earned reusable contracts and capabilities; proving scaffolding is retained in Git history rather than as production API.
 
 Current layers and proven boundaries include:
 
@@ -21,4 +21,4 @@ Architecture records:
 - `docs/architecture/roadmap.md` — next proof order;
 - `docs/architecture/revalidation.md` — accepted historical evidence;
 - `docs/architecture/dependencies.md` — dependency policy and current decisions;
-- `docs/architecture/stage9-application-assembly.md` — Stage 9 progression, source-equivalence proof, concrete consumer validation, and lock decisions.
+- `docs/architecture/stage9-application-assembly.md` — Stage 9 progression, source-equivalence proof, external proof-consumer validation, and lock decisions.
