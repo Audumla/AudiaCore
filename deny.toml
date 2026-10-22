@@ -1,4 +1,4 @@
-# Stage 8 transitive dependency policy.
+# AudiaCore transitive dependency policy.
 # cargo-deny 0.20.2, run by the SHA-pinned official action in revalidation.yml.
 
 [graph]
