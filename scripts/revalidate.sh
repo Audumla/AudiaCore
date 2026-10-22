@@ -46,12 +46,14 @@ assert_no_match() {
 for path in .gitignore LICENSE README.md AGENTS.md rust-toolchain.toml \
   docs/architecture/revalidation.md docs/architecture/layer-lock.md \
   docs/architecture/target-state.md docs/architecture/roadmap.md \
-  docs/architecture/dependencies.md .github/workflows/revalidation.yml; do
+  docs/architecture/dependencies.md docs/architecture/stage9-application-assembly.md \
+  tests/smoke/Cargo.toml tests/smoke/foundation.rs \
+  .github/workflows/revalidation.yml; do
   [[ -f "$path" ]] || fail "missing required repository file: $path"
 done
 
 for path in CLAUDE.md COPILOT.md GEMINI.md QWEN.md pyproject.toml uv.lock \
-  package.json package-lock.json Makefile .audiagentic .agents .qwen archive src tests \
+  package.json package-lock.json Makefile .audiagentic .agents .qwen archive src \
   crates/audiacore-application scripts/revalidate-stage7.sh; do
   [[ ! -e "$path" ]] || fail "legacy/proof-only repository surface present: $path"
 done
@@ -63,7 +65,7 @@ fi
 
 assert_no_match 'audiacore-managed-config|ManagedConfig|managed_config|IO-MCONFIG|revalidate-stage7' \
   "retired terminology/proof scaffolding returned" \
-  Cargo.toml README.md AGENTS.md crates .github \
+  Cargo.toml README.md AGENTS.md crates tests .github \
   docs/architecture/layer-lock.md docs/architecture/target-state.md \
   docs/architecture/roadmap.md docs/architecture/dependencies.md
 
@@ -296,6 +298,20 @@ assert_no_match 'Parser|Watcher|Scheduler|Retry|Backoff|Cas|CAS|Manager|Registry
   "Managed Content whole-file slice regained unearned semantics" "$managed_src"
 
 echo "CAPABILITY_LAYERS_OK"
+
+# Repository-level black-box smoke composition.
+smoke_manifest="tests/smoke/Cargo.toml"
+assert_dependencies "$smoke_manifest" "$(printf '%s\n' \
+  audiacore-core audiacore-events audiacore-host audiacore-host-native audiacore-managed-content)"
+assert_no_dev_or_build_dependencies "$smoke_manifest"
+assert_no_match 'git[[:space:]]*=|registry[[:space:]]*=|version[[:space:]]*=' \
+  "smoke tests must consume only workspace path crates" "$smoke_manifest"
+grep -Fq 'Application::new' tests/smoke/foundation.rs || fail "smoke test must exercise Application<C>"
+grep -Fq 'ManagedContentApplyResult::Created' tests/smoke/foundation.rs || fail "smoke test must prove a create effect"
+grep -Fq 'ManagedContentApplyResult::Noop' tests/smoke/foundation.rs || fail "smoke test must prove idempotent noop"
+grep -Fq 'EventStream::new' tests/smoke/foundation.rs || fail "smoke test must exercise the event stream"
+
+echo "SMOKE_COMPOSITION_OK"
 
 # Global locks.
 assert_no_match 'set_global_default|tracing_subscriber::.*\.init\(|tracing_subscriber::.*try_init\(' \
