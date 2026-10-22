@@ -3,7 +3,8 @@ name: audiacore-revalidation
 on:
   push:
     branches:
-      - 'revalidation/**'
+      - main
+      - 'experimental/**'
   pull_request:
     paths:
       - 'Cargo.toml'
@@ -11,6 +12,7 @@ on:
       - 'deny.toml'
       - 'rust-toolchain.toml'
       - 'crates/**'
+      - 'tests/**'
       - 'scripts/**'
       - 'docs/architecture/**'
       - 'AGENTS.md'
