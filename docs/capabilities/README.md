@@ -6,8 +6,7 @@ Each capability has **one canonical `README.md`** documenting what is implemente
 | --- | --- |
 | [Application and identity](application/README.md) | `audiacore-core` |
 | [Configuration](configuration/README.md) | `audiacore-config` |
-| [Errors](errors/README.md) | `audiacore-errors` |
-| [Presentation and catalogues](presentation/README.md) | `audiacore-template`, `audiacore-error-catalog` |
+| [Errors, messages and templates](errors/README.md) | `audiacore-errors`, `audiacore-template`, `audiacore-error-catalog` |
 | [Sensitive values](sensitive/README.md) | `audiacore-sensitive` |
 | [Host access](host/README.md) | `audiacore-host`, `audiacore-host-native` |
 | [Messaging and events](messaging/README.md) | `audiacore-events` (partial future messaging model) |
@@ -21,9 +20,10 @@ Capabilities without implemented APIs (for example diagnostics or queued deliver
 ## Keep documentation small
 
 - **Current use:** only `<capability>/README.md` is the public/current contract guide; describe tested API, minimal example or flow, guarantees, limitations, and source/test links. Do not place speculative designs here.
-- **Work in progress:** add `<capability>/work/YYYY-MM-DD-topic.md` only for a real investigation or active decision. Include **Status**, **Question**, **Evidence**, **Options**, **Decision** (or `Pending`), **Validation**, and **Next action**. One living note per investigation, not daily progress logs.
+- **Work in progress:** add `<capability>/work/<topic>.md` only for a real investigation or active decision. **Never prefix or suffix a filename with a date. Edit or append to the same topic file as research progresses.** Include **Status**, **Question**, **Evidence**, **Options**, **Decision** (or `Pending`), **Validation**, and **Next action**. One living note per investigation, not daily progress logs.
 - **Accepted decisions:** summarize the durable result in the capability guide (API behavior) or [global architecture](../architecture/core-capabilities.md) (cross-capability boundaries); link to its detailed evidence. Do not duplicate the rationale in multiple current pages.
-- **Archive:** when research is closed and no longer useful for active work, move it to `docs/archive/<capability>/<year>/` (create only when needed). Leave a short link from an accepted decision or history index if discoverability matters. Archives are not linked from the top-level current-use navigation.
+- **Archive:** when research is closed and no longer useful for active work, move it to `docs/archive/<capability>/<topic>.md` (create only when needed), preserving a stable descriptive filename. Leave a short link from an accepted decision or history index if discoverability matters. Archives are not linked from the top-level current-use navigation.
+- **Dates:** if relevant, record decisions or evidence dates **inside** the topic file, not in its path. Do not create a new file for each date or iteration.
 - **History:** Git commits/PRs and [revalidation history](../architecture/revalidation.md) remain authoritative for chronology. Do not copy entire historical stage files into each capability.
 - **Folders:** do not create `notes/`, `decisions/`, `backlog/`, `research/`, `archive/` and `drafts/` in every capability. Use the single optional `work/` directory.
 - **Review:** every capability code change should check its corresponding current-use page. Retire or archive completed work notes rather than letting `work/` become a second roadmap.

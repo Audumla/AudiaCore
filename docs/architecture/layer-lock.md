@@ -4,7 +4,7 @@ Status: **ACCEPTED FOUNDATION CONTRACT**.
 
 ## Governing rule
 
-Sources provide data. Resolution produces validated settings. Application policy expresses application intent. Capabilities receive narrow requests. Reconciliation computes change. Authority permits effects. Host contracts describe effects. Native adapters perform effects. Results describe what happened. Presentation explains it. Tracing observes it.
+Sources provide data. Resolution produces validated settings. Application policy expresses application intent. Capabilities receive narrow requests. Reconciliation computes change. Authority permits effects. Host contracts describe effects. Native adapters perform effects. Results describe what happened. Configured messages explain it. Tracing observes it.
 
 No lower layer may acquire vocabulary, dependencies, source acquisition, authority, or orchestration owned above it.
 
@@ -49,7 +49,7 @@ Partial/structured ownership, contribution identity, prune/restore, multi-resour
 
 ## Error contract
 
-Stable error code is the single source of category. Category is derived from the code prefix; configured presentation must not restate it.
+Stable error code is the single source of category. Category is derived from the code prefix; configured error messages must not restate it.
 
 Owner-local `errors.yaml` contains only:
 
@@ -92,7 +92,7 @@ See `core-capabilities.md` for the repository boundary.
 
 ## External module boundary
 
-AudiaCore is the reusable application platform. Configuration, errors, presentation, diagnostics, host access, reconciliation, Managed Content, messaging, workflow and time are core-platform concerns when expressed as protocol-neutral application capabilities.
+AudiaCore is the reusable application platform. Configuration, errors, message catalogues, diagnostics, host access, reconciliation, Managed Content, messaging, workflow and time are core-platform concerns when expressed as protocol-neutral application capabilities.
 
 ACP, MCP, A2A, MQTT transport, provider-specific adapters, and other protocol/vendor integrations are separate repositories. They depend on AudiaCore; AudiaCore does not depend on them.
 

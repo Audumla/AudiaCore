@@ -7,7 +7,7 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Core identity + opaque composition seam | PROVEN | `audiacore-core`; includes immutable and explicit mutable access to caller-owned `Application<C>` composition |
 | Stable coded errors | PROVEN | `audiacore-errors` |
 | Sensitive values | PROVEN | `audiacore-sensitive` |
-| Message templates + configured presentation | PROVEN | `audiacore-template`, `audiacore-error-catalog` |
+| Error-message catalogues and templates | PROVEN | `audiacore-template`, `audiacore-error-catalog` |
 | Pure reconciliation | PROVEN | `audiacore-reconcile` |
 | Config resolution + provenance | PROVEN | `audiacore-config` |
 | Config source acquisition | REQUIRED / DEFERRED | AudiaCore configuration edge; exact source contracts still to be earned |

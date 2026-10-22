@@ -12,4 +12,4 @@ AudiaCore must have **one canonical message/delivery model**, rather than a seco
 
 An in-process default may live in this repository as an **optional crate**. External implementations are obtained through Cargo and explicitly wired by application bootstrap. No automatic runtime implementation override is implied.
 
-Detailed research, decisions, and open questions: [active messaging research ledger](work/2026-10-22-standards-and-queue-research.md). Global ownership decisions: [core capabilities](../../architecture/core-capabilities.md).
+Detailed research, decisions, and open questions: [active messaging research ledger](work/standards-and-queue.md). Global ownership decisions: [core capabilities](../../architecture/core-capabilities.md).
