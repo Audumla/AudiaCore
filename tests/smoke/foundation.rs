@@ -66,8 +66,7 @@ fn foundation_composes_across_crates() -> Result<(), Box<dyn Error>> {
         ),
     };
 
-    let mut application =
-        Application::new(ApplicationId::new("audiacore-smoke")?, composition);
+    let mut application = Application::new(ApplicationId::new("audiacore-smoke")?, composition);
     let correlation = CorrelationId::new("smoke-run")?;
     let desired = Some(b"validated".to_vec());
 
@@ -82,11 +81,7 @@ fn foundation_composes_across_crates() -> Result<(), Box<dyn Error>> {
         assert_eq!(observed, None);
 
         let create = plan(&composition.target, &observed, &desired);
-        let first = apply(
-            &composition.host,
-            &composition.write_authority,
-            &create,
-        )?;
+        let first = apply(&composition.host, &composition.write_authority, &create)?;
         assert_eq!(first, ManagedContentApplyResult::Created);
 
         let first_sequence = composition.events.append(
@@ -105,11 +100,7 @@ fn foundation_composes_across_crates() -> Result<(), Box<dyn Error>> {
         assert_eq!(observed, desired);
 
         let noop = plan(&composition.target, &observed, &desired);
-        let second = apply(
-            &composition.host,
-            &composition.write_authority,
-            &noop,
-        )?;
+        let second = apply(&composition.host, &composition.write_authority, &noop)?;
         assert_eq!(second, ManagedContentApplyResult::Noop);
 
         let second_sequence = composition.events.append(
@@ -126,9 +117,15 @@ fn foundation_composes_across_crates() -> Result<(), Box<dyn Error>> {
 
     let events = &application.composition().events;
     assert_eq!(events.len(), 2);
-    assert_eq!(events.last_sequence().map(|sequence| sequence.get()), Some(2));
+    assert_eq!(
+        events.last_sequence().map(|sequence| sequence.get()),
+        Some(2)
+    );
 
-    let payloads = events.iter().map(|event| *event.payload()).collect::<Vec<_>>();
+    let payloads = events
+        .iter()
+        .map(|event| *event.payload())
+        .collect::<Vec<_>>();
     assert_eq!(
         payloads,
         vec![
