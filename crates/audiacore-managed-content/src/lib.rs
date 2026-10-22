@@ -1,7 +1,7 @@
-//! Managed Content capability — Stage 8 whole-file slice.
+//! Managed Content capability — whole-file desired-state slice.
 //!
-//! The target capability family is Managed Content. The Stage 8 implementation
-//! proves only whole-file desired-state reconciliation over narrow file-host
+//! The target capability family is Managed Content. This implementation proves
+//! only whole-file desired-state reconciliation over narrow file-host
 //! authority: observe optional bytes, plan desired presence through the pure
 //! reconciliation layer, and apply one resulting whole-file effect.
 //!
@@ -9,7 +9,7 @@
 //! prove ownership of pre-existing files, prune or restore contributions,
 //! coordinate multiple resources, watch files, retry operations, schedule work,
 //! or provide multi-writer concurrency guarantees. Those semantics must be
-//! earned by later Managed Content proofs without weakening this boundary.
+//! earned by later Managed Content slices without weakening this boundary.
 //!
 //! `desired = None` means deletion of the entire target file. Callers must only
 //! use this whole-file slice where lifecycle responsibility has already been

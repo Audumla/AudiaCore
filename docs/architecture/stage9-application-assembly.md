@@ -110,8 +110,7 @@ The proof was intentionally staged before permanent implementation. It surfaced 
 1. nested standalone Cargo packages initially inherited the parent workspace; each proof package was made an explicit standalone workspace instead of adding proof crates to AudiaCore's production workspace;
 2. source resolution was first validated unlocked, then lockfiles were generated and the same matrix rerun with `--locked`;
 3. the external composition proof gate initially found only a rustfmt line-wrap difference; formatting was corrected and the unchanged design then passed all three platforms;
-4. unrelated legacy AUDiaGentic Python canonical-provider-ID failures were kept out of Stage 9 rather than being hidden or opportunistically changed;
-5. after the proof, an attempted PR of the Rust consumer into the legacy AUDiaGentic application line was recognized as the wrong integration target and closed unmerged; production implementation remains greenfield in AudiaCore.
+4. an attempted PR of the Rust consumer into the legacy AUDiaGentic application line was recognized as the wrong integration target and closed unmerged; production implementation remains greenfield in AudiaCore.
 
 These corrections did not require new AudiaCore capability abstractions.
 

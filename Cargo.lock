@@ -81,6 +81,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "audiacore-smoke-tests"
+version = "0.1.0"
+dependencies = [
+ "audiacore-core",
+ "audiacore-events",
+ "audiacore-host",
+ "audiacore-host-native",
+ "audiacore-managed-content",
+]
+
+[[package]]
 name = "audiacore-template"
 version = "0.1.0"
 dependencies = [
