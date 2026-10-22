@@ -1,0 +1,22 @@
+[package]
+name = "audiacore-smoke-tests"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+autolib = false
+autobins = false
+autobenches = false
+autotests = false
+
+[dependencies]
+audiacore-core = { path = "../../crates/audiacore-core" }
+audiacore-events = { path = "../../crates/audiacore-events" }
+audiacore-host = { path = "../../crates/audiacore-host" }
+audiacore-host-native = { path = "../../crates/audiacore-host-native" }
+audiacore-managed-content = { path = "../../crates/audiacore-managed-content" }
+
+[[test]]
+name = "foundation"
+path = "foundation.rs"
