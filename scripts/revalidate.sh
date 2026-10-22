@@ -47,7 +47,8 @@ for path in .gitignore LICENSE README.md AGENTS.md rust-toolchain.toml \
   docs/architecture/revalidation.md docs/architecture/layer-lock.md \
   docs/architecture/target-state.md docs/architecture/roadmap.md \
   docs/architecture/dependencies.md docs/architecture/stage9-application-assembly.md \
-  tests/smoke/Cargo.toml tests/smoke/foundation.rs \
+  tests/smoke/Cargo.toml tests/smoke/foundation.rs tests/smoke/observability.rs \
+  crates/audiacore-logging/Cargo.toml crates/audiacore-logging/src/lib.rs \
   .github/workflows/revalidation.yml; do
   [[ -f "$path" ]] || fail "missing required repository file: $path"
 done
@@ -69,8 +70,13 @@ assert_no_match 'audiacore-managed-config|ManagedConfig|managed_config|IO-MCONFI
   docs/architecture/layer-lock.md docs/architecture/target-state.md \
   docs/architecture/roadmap.md docs/architecture/dependencies.md
 
-assert_no_match 'tracing(-subscriber)?[[:space:]]*=' \
-  "tracing dependencies returned without an active application/executable consumer" Cargo.toml crates
+# Only the application-edge logging crate may directly use tracing.
+for manifest in crates/*/Cargo.toml; do
+  if [[ "$manifest" != "crates/audiacore-logging/Cargo.toml" ]] &&
+     grep -Eq '^tracing(-subscriber)?[[:space:]]*=' "$manifest"; then
+    fail "lower-level crate acquired direct tracing dependency: $manifest"
+  fi
+done
 
 rustc --version
 cargo --version
@@ -202,6 +208,17 @@ assert_no_match 'kind:[[:space:]]*String|raw.kind|InvalidKind|OnceLock|OnceCell|
 
 echo "FOUNDATION_PRIMITIVES_OK"
 
+# Maintained application-edge observability, restored from Stage 7 proof.
+logging_manifest="crates/audiacore-logging/Cargo.toml"
+logging_src="crates/audiacore-logging/src/lib.rs"
+assert_dependencies "$logging_manifest" "$(printf '%s\n' audiacore-core audiacore-errors tracing tracing-subscriber)"
+for symbol in 'pub fn execution_span' 'pub fn log_coded_failure' 'pub fn stderr_subscriber' 'pub fn subscriber_with_writer'; do
+  grep -Fq "$symbol" "$logging_src" || fail "standard logging API missing $symbol"
+done
+assert_no_match 'set_global_default|\.try_init\(|\.init\(' \
+  "logging library must not initialize global subscriber" "$logging_src"
+
+
 # Configuration resolves content already acquired by the caller.
 config_manifest="crates/audiacore-config/Cargo.toml"
 config_src="crates/audiacore-config/src/lib.rs"
@@ -302,7 +319,8 @@ echo "CAPABILITY_LAYERS_OK"
 # Repository-level black-box smoke composition.
 smoke_manifest="tests/smoke/Cargo.toml"
 assert_dependencies "$smoke_manifest" "$(printf '%s\n' \
-  audiacore-core audiacore-events audiacore-host audiacore-host-native audiacore-managed-content)"
+  audiacore-core audiacore-errors audiacore-events audiacore-host \
+  audiacore-host-native audiacore-logging audiacore-managed-content tracing)"
 assert_no_dev_or_build_dependencies "$smoke_manifest"
 assert_no_match 'git[[:space:]]*=|registry[[:space:]]*=|version[[:space:]]*=' \
   "smoke tests must consume only workspace path crates" "$smoke_manifest"
@@ -310,6 +328,8 @@ grep -Fq 'Application::new' tests/smoke/foundation.rs || fail "smoke test must e
 grep -Fq 'ManagedContentApplyResult::Created' tests/smoke/foundation.rs || fail "smoke test must prove a create effect"
 grep -Fq 'ManagedContentApplyResult::Noop' tests/smoke/foundation.rs || fail "smoke test must prove idempotent noop"
 grep -Fq 'EventStream::new' tests/smoke/foundation.rs || fail "smoke test must exercise the event stream"
+grep -Fq 'execution_span' tests/smoke/observability.rs || fail "smoke test must prove structured tracing"
+grep -Fq 'log_coded_failure' tests/smoke/observability.rs || fail "smoke test must prove coded failure logging"
 
 echo "SMOKE_COMPOSITION_OK"
 

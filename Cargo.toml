@@ -5,6 +5,7 @@ members = [
     "crates/audiacore-sensitive",
     "crates/audiacore-template",
     "crates/audiacore-error-catalog",
+    "crates/audiacore-logging",
     "crates/audiacore-reconcile",
     "crates/audiacore-config",
     "crates/audiacore-host",
@@ -31,3 +32,5 @@ serde = "1.0.229"
 serde_json = "1.0.151"
 toml = { version = "1.1.4", default-features = false, features = ["std", "serde", "parse"] }
 yaml_serde = "0.10.7"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["fmt", "std", "ansi"] }

@@ -7,6 +7,7 @@ Each capability has **one canonical `README.md`** documenting what is implemente
 | [Application and identity](application/README.md) | `audiacore-core` |
 | [Configuration](configuration/README.md) | `audiacore-config` |
 | [Errors, messages and templates](errors/README.md) | `audiacore-errors`, `audiacore-template`, `audiacore-error-catalog` |
+| [Logging and tracing](logging/README.md) | `audiacore-logging` |
 | [Sensitive values](sensitive/README.md) | `audiacore-sensitive` |
 | [Host access](host/README.md) | `audiacore-host`, `audiacore-host-native` |
 | [Messaging and events](messaging/README.md) | `audiacore-events` (partial future messaging model) |
@@ -15,7 +16,7 @@ Each capability has **one canonical `README.md`** documenting what is implemente
 | [Workflow](workflow/README.md) | `audiacore-workflow` |
 | [Time](time/README.md) | `audiacore-time` |
 
-Capabilities without implemented APIs (for example diagnostics or queued delivery) remain in the [target state](../architecture/target-state.md), **not as empty folders**.
+Capabilities without implemented APIs (for example durable broker delivery) remain in the [target state](../architecture/target-state.md), **not as empty folders**.
 
 ## Keep documentation small
 

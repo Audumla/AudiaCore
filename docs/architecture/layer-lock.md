@@ -17,6 +17,7 @@ No lower layer may acquire vocabulary, dependencies, source acquisition, authori
 | `audiacore-sensitive` | sensitive values, secret-key identity, explicit redaction helpers | logging, stores, discovery, policy |
 | `audiacore-template` | pure mapping-only message rendering | object traversal, discovery, I/O |
 | `audiacore-error-catalog` | caller-owned message/resolution definitions + source provenance | category duplication, global registration, discovery, I/O |
+| `audiacore-logging` | application-edge execution spans, coded error events, standard optional subscriber construction | global subscriber initialization, registry, host/content policy, raw secret exposure |
 | `audiacore-reconcile` | desired/observed -> effect intent | resource identity, ownership, authority, hosts, policy |
 | `audiacore-config` | ordered in-memory TOML resolution + provenance | file/env/network acquisition, policy, authority |
 | `audiacore-host` | narrow file/process contracts + explicit scope descriptors | application policy, recipes, content ownership, native mechanics |
@@ -100,4 +101,4 @@ ACP, MCP, A2A, MQTT transport, provider-specific adapters, and other protocol/ve
 
 Domain events, operation receipts/evidence, operational tracing, execution output/artifacts, public status, and explicit diagnostics remain separate concepts.
 
-Tracing dependencies are not part of the current foundation because the historical application proof is no longer an active production layer. A real executable/application consumer may re-admit the maintained tracing ecosystem at that edge.
+The Stage 7 tracing design has been restored in maintained `audiacore-logging` (a separately selectable crate in this repository). `tracing` and `tracing-subscriber` live at this application/observability edge, not in lower capability crates. Only an application explicitly installs a subscriber. Distributed telemetry/export remains optional later work.

@@ -24,6 +24,8 @@ Controls:
 | `serde_json 1.0.151` | explicit mapping values for templates | `audiacore-template` |
 | `toml 1.1.4` | parse already-acquired config content | `audiacore-config` |
 | `yaml_serde 0.10.7` | strict caller-supplied error catalogue parsing | `audiacore-error-catalog` |
+| `tracing 0.1` | structured spans and events | `audiacore-logging`, application-edge smoke test |
+| `tracing-subscriber 0.3` | optional standard formatted logging subscriber and filtering | `audiacore-logging` |
 
 No dependency is retained solely because an historical proof used it.
 
@@ -51,7 +53,7 @@ Reopen this policy only if a later AudiaCore production consumer itself requires
 
 - `config-rs`: reconsider when a real application needs file/environment/other config source acquisition. Source acquisition stays outside `audiacore-config`.
 - `toml_edit` or another maintained structured editor: reconsider when a concrete Managed Content slice requires format-preserving mutation.
-- `tracing` / `tracing-subscriber`: re-admit at an executable/application edge when a real consumer needs structured operational tracing.
+- OpenTelemetry/remote exporters: consider only once a real application needs cross-process telemetry; `tracing` and `tracing-subscriber` are already readmitted in the maintained `audiacore-logging` application-edge crate.
 - dynamic loading/WASM/IPC libraries: select only after runtime extension deployment/isolation requirements are concrete.
 
 Reopen this record whenever a direct dependency/action is added, removed, materially upgraded, or becomes stale/vulnerable, or when a target capability reaches implementation and needs ecosystem support.
