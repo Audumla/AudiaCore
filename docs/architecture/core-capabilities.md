@@ -14,7 +14,7 @@ Typical core responsibilities include:
 
 - application, execution, correlation, and composition identity;
 - configuration acquisition, resolution, validation, and provenance;
-- stable errors, presentation, sensitive-value handling, logging, tracing, and diagnostics;
+- stable errors, message catalogues/templates, sensitive-value handling, logging, tracing, and diagnostics;
 - authority and host contracts plus the standard native host implementation;
 - reconciliation and generic desired-state capabilities such as Managed Content;
 - one canonical asynchronous messaging/event model;
@@ -99,7 +99,7 @@ The following are currently accepted as belonging in AudiaCore:
 | application/execution identity and typed composition | `audiacore-core` |
 | stable coded errors | `audiacore-errors` |
 | sensitive values and redaction primitives | `audiacore-sensitive` |
-| message/error templates and configured presentation | `audiacore-template`, `audiacore-error-catalog` |
+| message and error templates/catalogues | `audiacore-template`, `audiacore-error-catalog` |
 | configuration resolution and provenance | `audiacore-config`; source acquisition still to be built |
 | pure desired/observed reconciliation | `audiacore-reconcile` |
 | explicit filesystem/process authority and contracts | `audiacore-host` |

@@ -29,7 +29,7 @@ That history is valuable **context, not a completed AudiaCore standard selection
 
 No verified side-by-side standards comparison, implementation adapter tests, or acceptance matrix has yet been recorded in AudiaCore. **No standard has been selected as the canonical AudiaCore API.**
 
-## Directional decisions — 2026-10-22
+## Directional decisions
 
 - **Accepted direction:** one AudiaCore messaging concept; do not create separate event and queue engines.
 - **Accepted direction:** the application may select **zero, one, or multiple** implementations via explicit typed composition.

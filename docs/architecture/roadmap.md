@@ -34,7 +34,7 @@ Proof progression, commits, workflow runs, and lock classification are preserved
 
 ## Core capability boundary — CURRENT
 
-AudiaCore is the reusable application platform, not a minimal kernel. Configuration, error handling/presentation, diagnostics, host access, reconciliation, Managed Content, messaging, workflow, time, and other broadly reusable application facilities remain core-repository concerns when expressed without protocol/vendor coupling.
+AudiaCore is the reusable application platform, not a minimal kernel. Configuration, error handling/message catalogues, diagnostics, host access, reconciliation, Managed Content, messaging, workflow, time, and other broadly reusable application facilities remain core-repository concerns when expressed without protocol/vendor coupling.
 
 ACP, MCP, A2A, MQTT transport, provider implementations, and similar integrations are separate repositories that depend on AudiaCore and are composed externally through Cargo.
 
