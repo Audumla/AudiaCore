@@ -1,6 +1,6 @@
 # AudiaCore clean-room revalidation history
 
-Status: **COMPLETE THROUGH STAGE 8**.
+Status: **COMPLETE THROUGH STAGE 9**.
 
 This file records accepted proof history only. Current ownership is in `layer-lock.md`; target capabilities are in `target-state.md`; sequencing is in `roadmap.md`.
 
@@ -39,6 +39,7 @@ AudiaCore rebuilt the Rust foundation from an empty repository so boundaries wer
 | 7 | application-edge composition/observability proof | `9ee04ce0d57aee0a00707765e894f245efaf3941` | #338 / `32566520037` |
 | 8 audit | full layer/dependency/supply-chain audit | `28ba554b1cd46bb56838ed5f9d9cc20a5881c391` | #446 / `32624993669` |
 | 8 closeout | target-state recovery + Managed Content terminology | `8e8c6974d46f1c43a9c8119583aefc07f93a7f4a` | #453 / `32706313337` |
+| 9 | application assembly + external source equivalence | `87cb804629e10a7b276aa2b39ada8be823d507a3` | #477 / `39695235168` |
 
 ## What remains active from those proofs
 
@@ -57,6 +58,8 @@ Stage 8 established the layer/dependency baseline, recovered the target capabili
 
 Historical references to `managed-config` describe the original Stage 6D proof only; that terminology is not active API.
 
-## Post-Stage-8 rule
+Stage 9 proved that Cargo path and exact-revision Git sourcing can feed the same typed contracts without source-location semantics leaking into normal runtime code. The external consumer was proof evidence only; the production Rust application/bootstrap surface remains greenfield inside AudiaCore. Source-equivalence evidence is preserved in `stage9-application-assembly.md`.
+
+## Post-Stage-9 rule
 
 Future work is target-capability development. A new production slice must identify its target capability, respect `layer-lock.md`, and earn only the abstractions required by its concrete proof. Lack of current application clients is not grounds to remove a valid foundation contract.
