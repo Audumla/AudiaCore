@@ -14,6 +14,8 @@ Current layers and proven boundaries include:
 - Managed Content, currently limited to its whole-file desired-state slice;
 - application-owned typed assembly, with standard Cargo path/exact-revision Git source resolution kept outside normal runtime semantics.
 
+[Documentation index](docs/README.md) · [Current capability guides](docs/capabilities/README.md)
+
 Architecture records:
 
 - `docs/architecture/core-capabilities.md` — what belongs in AudiaCore versus separately maintained implementation/protocol repositories;
