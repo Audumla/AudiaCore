@@ -10,10 +10,10 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Message templates + configured presentation | PROVEN | `audiacore-template`, `audiacore-error-catalog` |
 | Pure reconciliation | PROVEN | `audiacore-reconcile` |
 | Config resolution + provenance | PROVEN | `audiacore-config` |
-| Config source acquisition | REQUIRED / DEFERRED | application/source edge |
+| Config source acquisition | REQUIRED / DEFERRED | AudiaCore configuration edge; exact source contracts still to be earned |
 | File/process host contracts | PROVEN | `audiacore-host` |
 | Native file/process adapters | PROVEN | `audiacore-host-native` |
-| Events | PROVEN | `audiacore-events` |
+| Canonical messaging/event foundation | PARTIAL | `audiacore-events` proves envelopes, correlation/causation, sequencing, retention, and cursors; queue/broker delivery must evolve this into one model, not add a parallel engine |
 | Workflow transition primitives | PROVEN | `audiacore-workflow` |
 | Time/timer primitives | PROVEN | `audiacore-time` |
 | Managed Content whole-file slice | PROVEN | `audiacore-managed-content` |
@@ -27,10 +27,11 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Managed package lifecycle | REQUIRED / DEFERRED | later software/package edge; separate from composition |
 | Durable execution/orchestration | PARTIAL | workflow/events/time primitives only |
 | Artifacts / execution output | REQUIRED / DEFERRED | application/runtime edge |
-| Provider capability contract | REQUIRED / DEFERRED | provider capability layer |
-| ACP-backed provider adapters + negotiation | REQUIRED / DEFERRED | provider/interop edge |
-| MCP / A2A / ASA / API / control channels | REQUIRED / DEFERRED | interoperability/application edges |
-| Application observability setup | REQUIRED / DEFERRED | executable/application edge |
+| Messaging implementation adapters (MQTT/NATS/etc.) | REQUIRED / DEFERRED | separate repositories implementing the AudiaCore messaging contract |
+| Provider capability contract | REQUIRED / DEFERRED | protocol-neutral portions only if concrete applications require a shared AudiaCore contract |
+| ACP-backed provider adapters + negotiation | REQUIRED / DEFERRED | separate ACP/provider repositories depending on AudiaCore |
+| MCP / A2A / ASA / protocol control channels | REQUIRED / DEFERRED | separate protocol repositories depending on AudiaCore |
+| Logging / tracing / diagnostics | REQUIRED / DEFERRED | AudiaCore application foundation; exact observability contract to be earned by the first real bootstrap |
 | Runtime dynamic-library loading | HYPOTHESIS | only if deployment requirements justify it |
 | WASM plugin runtime | HYPOTHESIS | only if isolation/portability requirements justify it |
 | Global service locator/provider registry | REJECTED | nowhere |

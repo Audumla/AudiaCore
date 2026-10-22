@@ -21,7 +21,7 @@ No lower layer may acquire vocabulary, dependencies, source acquisition, authori
 | `audiacore-config` | ordered in-memory TOML resolution + provenance | file/env/network acquisition, policy, authority |
 | `audiacore-host` | narrow file/process contracts + explicit scope descriptors | application policy, recipes, content ownership, native mechanics |
 | `audiacore-host-native` | OS file/process mechanics | application/provider/config/content semantics |
-| `audiacore-events` | deterministic caller-owned event streams | broker, transport, persistence, retry, scheduler |
+| `audiacore-events` | currently proven event/message envelope, correlation/causation, ordering, retention and cursor semantics | permanent separate queue engine, broker-specific semantics, MQTT transport |
 | `audiacore-workflow` | deterministic workflow transitions/checkpoints | runtime, persistence, scheduler, compensation engine |
 | `audiacore-time` | caller-supplied timestamps/deadlines/timer sets | clocks, sleeps, scheduler, runtime |
 | `audiacore-managed-content` | Managed Content capability; currently whole-file observe/plan/apply | config acquisition, native I/O, application policy, unproved partial ownership |
@@ -79,6 +79,22 @@ External source/package resolution happens before bootstrap composition. Once re
 Application/bootstrap edges own implementation selection, compatibility validation where required, concrete wiring, provider selection, and observability setup. Package install/update/remove and runtime-loading mechanisms are separate higher concerns and must not be folded into composition by default.
 
 Do not introduce service locators, dependency containers, global registries, generic managers, universal component lifecycle traits, runtime provider registries, or plugin frameworks without concrete evidence. Stage 9 specifically found none of these necessary. Validation evidence is recorded in `stage9-application-assembly.md`.
+
+## Canonical messaging direction
+
+AudiaCore will have one canonical asynchronous messaging/event model. Domain events, commands, requests, responses, and queued work must not become separate infrastructure engines with incompatible envelopes, ordering, correlation, or consumption semantics.
+
+The current `audiacore-events` crate is an accepted partial proof, not a permanent boundary against a future queue subsystem. Before queue/broker support is implemented, its proven semantics must be reassessed and folded into the single AudiaCore messaging contract.
+
+Transport implementations such as MQTT, NATS, RabbitMQ, Redis, or other brokers live in separate repositories and implement the AudiaCore contract. Broker-specific wire/QoS/connection semantics do not belong in AudiaCore unless a transport-neutral application requirement proves a common semantic.
+
+See `core-capabilities.md` for the repository boundary.
+
+## External module boundary
+
+AudiaCore is the reusable application platform. Configuration, errors, presentation, diagnostics, host access, reconciliation, Managed Content, messaging, workflow and time are core-platform concerns when expressed as protocol-neutral application capabilities.
+
+ACP, MCP, A2A, MQTT transport, provider-specific adapters, and other protocol/vendor integrations are separate repositories. They depend on AudiaCore; AudiaCore does not depend on them.
 
 ## Cross-cutting outputs
 

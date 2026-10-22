@@ -32,6 +32,14 @@ Package install/update/remove, component compatibility metadata, declarative ass
 
 Proof progression, commits, workflow runs, and lock classification are preserved in `stage9-application-assembly.md`.
 
+## Core capability boundary — CURRENT
+
+AudiaCore is the reusable application platform, not a minimal kernel. Configuration, error handling/presentation, diagnostics, host access, reconciliation, Managed Content, messaging, workflow, time, and other broadly reusable application facilities remain core-repository concerns when expressed without protocol/vendor coupling.
+
+ACP, MCP, A2A, MQTT transport, provider implementations, and similar integrations are separate repositories that depend on AudiaCore and are composed externally through Cargo.
+
+AudiaCore must standardize one canonical messaging/event model. A future queue capability must evolve the current event semantics rather than introduce a second incompatible engine. See `core-capabilities.md`.
+
 ## Next implementation checkpoint — greenfield application/bootstrap
 
 Build the first production application/bootstrap surface **inside this AudiaCore repository**, above the accepted foundation.
@@ -60,10 +68,10 @@ Add install/upgrade/uninstall/version semantics only when a real integration or 
 
 Compose workflow/events/time into application-level durability only as required by a real use case. Persistence, retries, compensation, status, diagnostics, and artifacts are earned independently.
 
-## 14. Provider / ACP ecosystem
+## 14. Provider / ACP ecosystem — EXTERNAL MODULES
 
-From real ACP-capable providers, establish typed provider/session contracts and capability negotiation. Provider implementations do not own generic orchestration or source discovery.
+Build ACP and provider integrations in separate repositories against AudiaCore. If multiple external modules demonstrate a genuinely protocol-neutral provider/session contract that applications need to share, admit only that smallest contract into AudiaCore. Provider implementations, ACP negotiation, transport, and source discovery remain outside the core repository.
 
-## 15. Interoperability surfaces
+## 15. Interoperability surfaces — EXTERNAL MODULES
 
-Add MCP, A2A, ASA, API, and control channels as adapters/projections around the canonical application/execution model. Do not create parallel task, authority, workflow, status, or persistence models.
+Build MCP, A2A, ASA, protocol control channels, and other integration surfaces as separately maintained repositories against the canonical AudiaCore application/execution/messaging model. They must not create parallel task, authority, workflow, messaging, status, or persistence models.
