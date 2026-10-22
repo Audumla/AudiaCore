@@ -31,7 +31,8 @@ Status vocabulary: **PROVEN**, **REQUIRED / DEFERRED**, **PARTIAL**, **HYPOTHESI
 | Provider capability contract | REQUIRED / DEFERRED | protocol-neutral portions only if concrete applications require a shared AudiaCore contract |
 | ACP-backed provider adapters + negotiation | REQUIRED / DEFERRED | separate ACP/provider repositories depending on AudiaCore |
 | MCP / A2A / ASA / protocol control channels | REQUIRED / DEFERRED | separate protocol repositories depending on AudiaCore |
-| Logging / tracing / diagnostics | REQUIRED / DEFERRED | AudiaCore application foundation; exact observability contract to be earned by the first real bootstrap |
+| Logging / tracing (structured application edge) | PROVEN | `audiacore-logging`: execution correlation, coded failures, configurable standard subscriber; restored from Stage 7 |
+| Distributed telemetry/export and richer diagnostics | REQUIRED / DEFERRED | higher application/observability edge |
 | Runtime dynamic-library loading | HYPOTHESIS | only if deployment requirements justify it |
 | WASM plugin runtime | HYPOTHESIS | only if isolation/portability requirements justify it |
 | Global service locator/provider registry | REJECTED | nowhere |

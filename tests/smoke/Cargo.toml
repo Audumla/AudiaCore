@@ -12,11 +12,18 @@ autotests = false
 
 [dependencies]
 audiacore-core = { path = "../../crates/audiacore-core" }
+audiacore-errors = { path = "../../crates/audiacore-errors" }
 audiacore-events = { path = "../../crates/audiacore-events" }
 audiacore-host = { path = "../../crates/audiacore-host" }
 audiacore-host-native = { path = "../../crates/audiacore-host-native" }
+audiacore-logging = { path = "../../crates/audiacore-logging" }
 audiacore-managed-content = { path = "../../crates/audiacore-managed-content" }
+tracing = { workspace = true }
 
 [[test]]
 name = "foundation"
 path = "foundation.rs"
+
+[[test]]
+name = "observability"
+path = "observability.rs"

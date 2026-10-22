@@ -15,6 +15,7 @@ on:
       - 'tests/**'
       - 'scripts/**'
       - 'docs/architecture/**'
+      - 'docs/capabilities/**'
       - 'AGENTS.md'
       - 'README.md'
       - '.github/workflows/revalidation.yml'

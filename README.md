@@ -8,6 +8,7 @@ Current layers and proven boundaries include:
 
 - core identity and opaque caller-owned `Application<C>` composition seam;
 - stable coded errors, sensitive values, templates, and configured error messages;
+- structured tracing, correlated coded-error logs, and an optional standard formatting subscriber;
 - pure reconciliation and in-memory configuration resolution;
 - explicit file/process host contracts and native adapters;
 - one canonical messaging/event foundation, plus workflow and time primitives;

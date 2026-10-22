@@ -39,6 +39,6 @@ The generic `Template::parse()`/`Template::render()` facility also works indepen
 
 ## Logging is a separate core capability
 
-**Not implemented yet:** AudiaCore logging/tracing/structured diagnostics or logger/sink initialization. Those belong in the AudiaCore application foundation but currently have no production crate. Error identity, catalogue rendering, and redaction are already available; they should be reused when logging is implemented rather than reinvented.
+**Implemented:** application-edge structured logging and tracing via [`audiacore-logging`](../logging/README.md). The logging crate uses stable error codes and execution/correlation identity without turning error catalogues into log sinks. An application chooses and installs its subscriber; there is no global logger installed by library code. Advanced distributed telemetry/export remains deferred.
 
 See [target state](../../architecture/target-state.md) and [application roadmap](../../architecture/roadmap.md).
