@@ -24,6 +24,16 @@ Typical core responsibilities include:
 
 A capability does not leave AudiaCore merely because an alternative implementation can exist elsewhere. Core defines the stable contract and may provide the standard/default implementation. Independently maintained crates can provide alternative implementations of the same contract.
 
+## Optional standard implementations
+
+**Repository membership is not an application dependency.** AudiaCore may maintain optional standard implementation crates (for example native host adapters, file configuration sources, or in-process messaging) alongside its canonical contracts. An app opts into those crates through Cargo; it does not have to link or construct them.
+
+For each capability, **zero, one, or multiple implementations** must be valid whenever the application semantics permit it. For example, an app may have no messaging, only in-process messaging, only MQTT messaging, or local and MQTT messaging simultaneously. The app explicitly wires concrete implementations; there is no implicit runtime override, universal container, or auto-selection of a default.
+
+Standard local implementations and external transports implement **the same capability contract**, without guaranteeing identical broker-specific delivery properties. Source location does not determine runtime semantics.
+
+See [current capability guides](../capabilities/README.md) for implemented APIs and usage; those guides intentionally separate current behavior from active research.
+
 ## External module rule
 
 A capability belongs outside the AudiaCore repository when its primary purpose is integration with a particular protocol, broker, provider, vendor, service, or ecosystem.
